@@ -2,7 +2,7 @@ import { clerkMiddleware } from "@clerk/nextjs/server";
 
 export default clerkMiddleware(
   {
-    publicRoutes: ["/signin", "/signup", "/", "/dashboard"],
+    publicRoutes: ["/signin", "/signup"],
   }
 );
 
