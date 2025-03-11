@@ -9,6 +9,10 @@ export default function Home() {
       <Link href="/dashboard" className="text-blue-500 hover:underline">
         Go to Dashboard
       </Link>
+      <br />
+      <Link href="/admin" className="text-blue-500 hover:underline">
+        Go to Admin
+      </Link>
     </div>
   );
 }
