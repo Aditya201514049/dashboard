@@ -1,24 +1,4 @@
 
-/*
-import React from 'react';
-import { SignUp } from '@clerk/nextjs';
-
-const SignUpPage = () => {
-  return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-100">
-      
-      <SignUp 
-        path="/signup" 
-        routing="path" 
-        
-        // Removing the signUpUrl as it's not necessary for Google/GitHub sign-ins
-      />
-    </div>
-  );
-};
-
-export default SignUpPage;
-*/
 
 "use client";
 

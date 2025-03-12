@@ -1,23 +1,3 @@
-/*
-import React from 'react';
-import { SignIn } from '@clerk/nextjs';
-
-const SignInPage = () => {
-  return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-100">
-      
-      <SignIn 
-        path="/signin" 
-        routing="path" 
-        
-        // Removing the signUpUrl as it's not necessary for Google/GitHub sign-ins
-      />
-    </div>
-  );
-};
-
-export default SignInPage;
-*/
 
 "use client";
 
@@ -31,6 +11,7 @@ const SignInPage = () => {
   const { isSignedIn, user } = useUser();
 
   useEffect(() => {
+    console.log("Effect running, isSignedIn:", isSignedIn, "user:", user);
     const saveUserToFirestore = async () => {
       if (isSignedIn && user) {
         try {
