@@ -61,10 +61,9 @@ const SignInPage = () => {
   const { isLoaded, isSignedIn, user } = useUser();
 
   useEffect(() => {
-    if (isLoaded) {
-      console.log("isSignedIn:", isSignedIn);
-      console.log("User object:", user);
-    }
+    if (!isLoaded) return; // Wait until the hook has finished loading
+    console.log("isSignedIn:", isSignedIn);
+    console.log("User object:", user);
   }, [isLoaded, isSignedIn, user]);
 
   return (
