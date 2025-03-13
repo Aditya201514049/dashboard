@@ -1,4 +1,4 @@
-
+/*
 "use client";
 
 import React, { useEffect } from "react";
@@ -41,6 +41,31 @@ const SignInPage = () => {
 
     saveUserToFirestore();
   }, [isSignedIn, user]);
+
+  return (
+    <div className="flex items-center justify-center min-h-screen bg-gray-100">
+      <SignIn path="/signin" routing="path" />
+    </div>
+  );
+};
+
+export default SignInPage;
+*/
+
+"use client";
+
+import React, { useEffect } from "react";
+import { SignIn, useUser } from "@clerk/nextjs";
+
+const SignInPage = () => {
+  const { isLoaded, isSignedIn, user } = useUser();
+
+  useEffect(() => {
+    if (isLoaded) {
+      console.log("isSignedIn:", isSignedIn);
+      console.log("User object:", user);
+    }
+  }, [isLoaded, isSignedIn, user]);
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-100">
