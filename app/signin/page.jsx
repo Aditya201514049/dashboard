@@ -4,7 +4,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { auth } from '@/lib/firebase';
-import GoogleSignIn from '@/components/ui/GoogleSignIn';
+import GoogleSignIn from '@/components/GoogleSignIn';
 
 const SignInPage = () => {
   const router = useRouter();
