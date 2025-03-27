@@ -1,14 +1,20 @@
 "use client";
 import React from 'react';
-import { useRouter } from 'next/router';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { auth } from '@/lib/firebase'; // Adjust the import based on your project structure
 
 const Navbar = () => {
   const router = useRouter();
 
-  const handleSignOut = () => {
-    // Add your sign-out logic here
-    router.push('/signin');
+ 
+  const handleSignOut = async () => {
+    try {
+      await auth.signOut();
+      router.push('/signin');
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
   };
 
   return (
@@ -16,7 +22,7 @@ const Navbar = () => {
       <div className="container mx-auto flex justify-between items-center">
         <div className="flex space-x-4">
           <Link href="/" className="text-lg font-bold hover:underline">
-            Dashboard
+            Home
           </Link>
           <Link href="/admin" className="text-lg font-bold hover:underline">
             Admin
