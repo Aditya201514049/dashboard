@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { auth } from '@/lib/firebase';
 import { useAuth } from '@/lib/AuthContext';
 import Cookies from 'js-cookie';
-import { Menu, User, LogOut } from 'lucide-react';
+import { Menu, User, LogOut, BarChart2, ShoppingBag, Settings } from 'lucide-react';
 
 const Navbar = () => {
   const router = useRouter();
@@ -38,9 +38,21 @@ const Navbar = () => {
           
           {/* Desktop Navigation - Centered */}
           <div className="hidden md:flex space-x-6 items-center absolute left-1/2 transform -translate-x-1/2">
-            <Link href="/" className={`text-xs transition-colors px-2 py-1 ${isActive("/")}`}>Home</Link>
-            <Link href="/dashboard" className={`text-xs transition-colors px-2 py-1 ${isActive("/dashboard")}`}>Dashboard</Link>
-            <Link href="/admin" className={`text-xs transition-colors px-2 py-1 ${isActive("/admin")}`}>Admin</Link>
+            <Link href="/" className={`text-xs transition-colors px-2 py-1 ${isActive("/")} flex items-center`}>
+              <span>Home</span>
+            </Link>
+            <Link href="/dashboard" className={`text-xs transition-colors px-2 py-1 ${isActive("/dashboard")} flex items-center`}>
+              <BarChart2 size={12} className="mr-1" />
+              <span>Dashboard</span>
+            </Link>
+            <Link href="/admin" className={`text-xs transition-colors px-2 py-1 ${isActive("/admin")} flex items-center`}>
+              <ShoppingBag size={12} className="mr-1" />
+              <span>Admin</span>
+            </Link>
+            <Link href="/admin/dashboard" className={`text-xs transition-colors px-2 py-1 ${isActive("/admin/dashboard")} flex items-center`}>
+              <Settings size={12} className="mr-1" />
+              <span>Analytics</span>
+            </Link>
           </div>
           
           {/* Right Side Controls */}
@@ -83,15 +95,21 @@ const Navbar = () => {
       {/* Mobile Menu - Slide Down */}
       {isMenuOpen && (
         <div className="md:hidden bg-primary/95 shadow-md absolute w-full z-40">
-          <div className="container mx-auto py-1 flex flex-row justify-center space-x-4 text-center">
-            <Link href="/" className={`text-xs py-1 px-3 ${isActive("/")}`} onClick={() => setIsMenuOpen(false)}>
-              Home
+          <div className="container mx-auto py-1 flex flex-col space-y-1 text-center">
+            <Link href="/" className={`text-xs py-1 px-3 ${isActive("/")} flex items-center justify-center`} onClick={() => setIsMenuOpen(false)}>
+              <span>Home</span>
             </Link>
-            <Link href="/dashboard" className={`text-xs py-1 px-3 ${isActive("/dashboard")}`} onClick={() => setIsMenuOpen(false)}>
-              Dashboard
+            <Link href="/dashboard" className={`text-xs py-1 px-3 ${isActive("/dashboard")} flex items-center justify-center`} onClick={() => setIsMenuOpen(false)}>
+              <BarChart2 size={12} className="mr-1" />
+              <span>Dashboard</span>
             </Link>
-            <Link href="/admin" className={`text-xs py-1 px-3 ${isActive("/admin")}`} onClick={() => setIsMenuOpen(false)}>
-              Admin
+            <Link href="/admin" className={`text-xs py-1 px-3 ${isActive("/admin")} flex items-center justify-center`} onClick={() => setIsMenuOpen(false)}>
+              <ShoppingBag size={12} className="mr-1" />
+              <span>Admin</span>
+            </Link>
+            <Link href="/admin/dashboard" className={`text-xs py-1 px-3 ${isActive("/admin/dashboard")} flex items-center justify-center`} onClick={() => setIsMenuOpen(false)}>
+              <Settings size={12} className="mr-1" />
+              <span>Analytics</span>
             </Link>
           </div>
         </div>
