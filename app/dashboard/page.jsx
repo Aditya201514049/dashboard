@@ -43,10 +43,38 @@ import {
 
 // Import Firebase services if needed for authentication
 import { useAuth } from "@/lib/AuthContext";
-import {
-  db
-} from "@/lib/firestore";
-import { collection, query, where, getDocs, orderBy, limit } from "firebase/firestore";
+import { auth } from "@/lib/firebase";
+import { db } from "@/lib/firestore";
+import { 
+  collection, 
+  query, 
+  where, 
+  getDocs, 
+  orderBy, 
+  limit, 
+  getCountFromServer,
+  sum,
+  getAggregateFromServer,
+  Timestamp,
+  addDoc
+} from "firebase/firestore";
+
+// Custom Taka icon component
+const TakaIcon = (props) => (
+  <svg 
+    viewBox="0 0 24 24" 
+    width="24" 
+    height="24" 
+    stroke="currentColor" 
+    strokeWidth="2" 
+    fill="none" 
+    strokeLinecap="round" 
+    strokeLinejoin="round" 
+    {...props}
+  >
+    <text x="6" y="18" fontSize="16" fontWeight="bold" stroke="currentColor" fill="currentColor">৳</text>
+  </svg>
+);
 
 export default function Dashboard() {
   const { user, loading: authLoading } = useAuth();
@@ -58,14 +86,21 @@ export default function Dashboard() {
     to: new Date()
   });
   const [globalStats, setGlobalStats] = useState({
-    totalUsers: 1245,
-    totalRevenue: 12340,
-    totalSales: 340,
-    totalProducts: 76
+    totalUsers: 0,
+    totalRevenue: 0,
+    totalSales: 0,
+    totalProducts: 0,
+    totalShops: 0
+  });
+  const [userStats, setUserStats] = useState({
+    userShops: 0,
+    userProducts: 0,
+    userSales: 0,
+    userRevenue: 0
   });
 
-  // Sample data for charts
-  const revenueData = [
+  // For revenue data over time
+  const [revenueData, setRevenueData] = useState([
     { name: 'Jan', revenue: 4000 },
     { name: 'Feb', revenue: 3000 },
     { name: 'Mar', revenue: 5000 },
@@ -73,20 +108,21 @@ export default function Dashboard() {
     { name: 'May', revenue: 7000 },
     { name: 'Jun', revenue: 6000 },
     { name: 'Jul', revenue: 8000 },
-  ];
+  ]);
 
-  const salesByCategory = [
+  // For sales by category
+  const [salesByCategory, setSalesByCategory] = useState([
     { name: 'Electronics', value: 400 },
     { name: 'Clothing', value: 300 },
     { name: 'Food', value: 300 },
     { name: 'Books', value: 200 },
     { name: 'Other', value: 100 },
-  ];
+  ]);
 
   const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
 
   // Daily traffic data
-  const trafficData = [
+  const [trafficData, setTrafficData] = useState([
     { day: 'Mon', visits: 4000, pageViews: 2400 },
     { day: 'Tue', visits: 3000, pageViews: 1398 },
     { day: 'Wed', visits: 2000, pageViews: 9800 },
@@ -94,55 +130,226 @@ export default function Dashboard() {
     { day: 'Fri', visits: 1890, pageViews: 4800 },
     { day: 'Sat', visits: 2390, pageViews: 3800 },
     { day: 'Sun', visits: 3490, pageViews: 4300 },
-  ];
+  ]);
 
-  // Sample transactions data
-  const transactions = [
+  // Transactions data
+  const [transactions, setTransactions] = useState([
     { id: 1, date: '02/20/2025', description: 'Payment Received', amount: 200, status: 'completed' },
     { id: 2, date: '02/21/2025', description: 'Invoice Paid', amount: 150, status: 'pending' },
     { id: 3, date: '02/22/2025', description: 'Subscription Fee', amount: 50, status: 'failed' },
     { id: 4, date: '02/23/2025', description: 'Product Purchase', amount: 300, status: 'completed' },
     { id: 5, date: '02/24/2025', description: 'Service Fee', amount: 75, status: 'completed' },
-  ];
+  ]);
 
-  // Sample activity data
-  const activities = [
+  // Activity data
+  const [activities, setActivities] = useState([
     { id: 1, type: 'new', text: 'John added 3 new products', time: '2 hours ago' },
     { id: 2, type: 'update', text: 'Price change for SKU-123456', time: '4 hours ago' },
     { id: 3, type: 'restock', text: '20 units of Product XYZ added to inventory', time: '1 day ago' },
-    { id: 4, type: 'sale', text: 'New sale of $500 recorded', time: '1 day ago' },
+    { id: 4, type: 'sale', text: 'New sale of ৳500 recorded', time: '1 day ago' },
     { id: 5, type: 'customer', text: 'New customer registered', time: '2 days ago' },
-  ];
+  ]);
 
-  // Load real data for authenticated users
+  // Load real data for all users - both authenticated and non-authenticated
   useEffect(() => {
-    async function loadData() {
-      if (user) {
-        try {
-          setLoading(true);
-          // Here you can load real data from Firestore
-          // For now we'll just use a timeout to simulate loading
-          setTimeout(() => {
-            setLoading(false);
-          }, 1000);
-        } catch (error) {
-          console.error("Error loading data:", error);
-          setLoading(false);
+    async function loadGlobalData() {
+      try {
+        setLoading(true);
+        console.log("Loading global data...");
+
+        // Count total users
+        const usersRef = collection(db, "users");
+        const usersSnapshot = await getCountFromServer(usersRef);
+        const totalUsers = usersSnapshot.data().count;
+
+        // Count total shops
+        const shopsRef = collection(db, "shops");
+        const shopsSnapshot = await getCountFromServer(shopsRef);
+        const totalShops = shopsSnapshot.data().count;
+
+        // Count total products
+        const productsRef = collection(db, "products");
+        const productsSnapshot = await getCountFromServer(productsRef);
+        const totalProducts = productsSnapshot.data().count;
+
+        // Count total sales and sum revenue
+        const salesRef = collection(db, "sales");
+        const salesSnapshot = await getCountFromServer(salesRef);
+        const totalSales = salesSnapshot.data().count;
+
+        // Calculate total revenue (if your sales collection has an amount field)
+        let totalRevenue = 0;
+        const salesQuery = query(salesRef, limit(100));
+        const salesQuerySnapshot = await getDocs(salesQuery);
+        salesQuerySnapshot.forEach((doc) => {
+          const saleData = doc.data();
+          if (saleData.amount) {
+            totalRevenue += saleData.amount;
+          }
+        });
+
+        // Get monthly revenue data for the chart
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const currentYear = new Date().getFullYear();
+        const monthlyRevenue = Array(12).fill(0);
+
+        // Calculate revenue by month
+        salesQuerySnapshot.forEach((doc) => {
+          const saleData = doc.data();
+          if (saleData.amount && saleData.date && saleData.date instanceof Timestamp) {
+            const saleDate = saleData.date.toDate();
+            if (saleDate.getFullYear() === currentYear) {
+              const month = saleDate.getMonth();
+              monthlyRevenue[month] += saleData.amount;
+            }
+          }
+        });
+
+        // Format for chart
+        const chartData = monthNames.map((name, index) => ({
+          name,
+          revenue: monthlyRevenue[index]
+        }));
+
+        // Get sales by category
+        const categories = {};
+        const productsQuery = query(productsRef, limit(100));
+        const productsQuerySnapshot = await getDocs(productsQuery);
+        
+        // Count products by category
+        productsQuerySnapshot.forEach((doc) => {
+          const productData = doc.data();
+          const category = productData.category || 'Other';
+          if (!categories[category]) {
+            categories[category] = 0;
+          }
+          categories[category]++;
+        });
+
+        // Format for pie chart
+        const categoryData = Object.entries(categories).map(([name, value]) => ({
+          name,
+          value
+        }));
+
+        // Get recent transactions
+        const recentSalesQuery = query(salesRef, orderBy("date", "desc"), limit(5));
+        const recentSalesSnapshot = await getDocs(recentSalesQuery);
+        const recentSales = recentSalesSnapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            date: data.date instanceof Timestamp ? data.date.toDate().toLocaleDateString() : 'Unknown',
+            description: data.description || 'Sale',
+            amount: data.amount || 0,
+            status: data.status || 'completed'
+          };
+        });
+
+        // Update states with real data
+        setGlobalStats({
+          totalUsers,
+          totalRevenue,
+          totalSales,
+          totalProducts,
+          totalShops
+        });
+
+        // Only update these if we have real data
+        if (chartData.some(item => item.revenue > 0)) {
+          setRevenueData(chartData);
         }
-      } else {
-        // For non-authenticated users, just show the sample data
+        
+        if (categoryData.length > 0) {
+          setSalesByCategory(categoryData);
+        }
+        
+        if (recentSales.length > 0) {
+          setTransactions(recentSales);
+        }
+
+        setLoading(false);
+        console.log("Global data loaded successfully");
+      } catch (error) {
+        console.error("Error loading global data:", error);
         setLoading(false);
       }
     }
+
+    async function loadUserData() {
+      try {
+        if (user) {
+          console.log("Loading user-specific data...");
+          const userId = user.uid;
+
+          // Count user's shops
+          const userShopsQuery = query(collection(db, "shops"), where("userId", "==", userId));
+          const userShopsSnapshot = await getCountFromServer(userShopsQuery);
+          const userShops = userShopsSnapshot.data().count;
+
+          // Get user's shop IDs
+          const userShopsIdsSnapshot = await getDocs(userShopsQuery);
+          const shopIds = userShopsIdsSnapshot.docs.map(doc => doc.id);
+
+          // Count user's products
+          let userProducts = 0;
+          let userSales = 0;
+          let userRevenue = 0;
+
+          // If user has shops, get product and sales data
+          if (shopIds.length > 0) {
+            for (const shopId of shopIds) {
+              // Count products for this shop
+              const productsQuery = query(collection(db, "products"), where("shopId", "==", shopId));
+              const productsSnapshot = await getCountFromServer(productsQuery);
+              userProducts += productsSnapshot.data().count;
+
+              // Count sales and sum revenue for this shop
+              const salesQuery = query(collection(db, "sales"), where("shopId", "==", shopId));
+              const salesSnapshot = await getCountFromServer(salesQuery);
+              userSales += salesSnapshot.data().count;
+
+              // Calculate revenue from sales
+              const salesQuerySnapshot = await getDocs(salesQuery);
+              salesQuerySnapshot.forEach((doc) => {
+                const saleData = doc.data();
+                if (saleData.amount) {
+                  userRevenue += saleData.amount;
+                }
+              });
+            }
+          }
+
+          // Update user-specific stats
+          setUserStats({
+            userShops,
+            userProducts,
+            userSales,
+            userRevenue
+          });
+
+          console.log("User data loaded successfully");
+        }
+      } catch (error) {
+        console.error("Error loading user data:", error);
+      }
+    }
     
-    loadData();
+    // Load global data for all users
+    loadGlobalData();
+    
+    // If authenticated, also load user-specific data
+    if (user) {
+      loadUserData();
+    }
   }, [user]);
 
   // Format currency
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat('bn-BD', {
       style: 'currency',
-      currency: 'USD',
+      currency: 'BDT',
+      currencyDisplay: 'narrowSymbol'
     }).format(amount);
   };
 
@@ -178,7 +385,7 @@ export default function Dashboard() {
     }
   };
 
-  // Use the Protected component conditional on user's auth status
+  // Dashboard content that shows for all users
   const DashboardContent = () => (
     <div className="min-h-screen bg-slate-50 p-4 md:p-6">
       <div className="mb-6">
@@ -186,6 +393,13 @@ export default function Dashboard() {
         <p className="text-sm md:text-base text-gray-500 text-center md:text-left">
           {user ? `Welcome back, ${user.displayName || user.email || 'User'}!` : 'Welcome to the dashboard!'}
         </p>
+        {!user && (
+          <div className="mt-4 p-4 rounded-lg bg-blue-50 border border-blue-200">
+            <p className="text-blue-800 text-sm">
+              You're viewing public statistics. <a href="/signin" className="text-blue-600 font-semibold hover:underline">Sign in</a> to manage your own data and see detailed insights.
+            </p>
+          </div>
+        )}
       </div>
       
       {/* Stats Cards */}
@@ -194,15 +408,20 @@ export default function Dashboard() {
           <CardHeader className="pb-2">
             <CardDescription>Total Users</CardDescription>
             <CardTitle className="text-2xl flex items-center justify-between">
-              {globalStats.totalUsers}
+              {loading ? '...' : globalStats.totalUsers}
               <Users className="h-5 w-5 text-blue-500" />
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-xs flex items-center text-green-500">
               <TrendingUp className="h-3 w-3 mr-1" />
-              <span>12% from last month</span>
+              <span>Platform wide</span>
             </div>
+            {user && (
+              <div className="mt-2 text-xs text-gray-600">
+                Your account: 1 user
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -210,15 +429,20 @@ export default function Dashboard() {
           <CardHeader className="pb-2">
             <CardDescription>Total Revenue</CardDescription>
             <CardTitle className="text-2xl flex items-center justify-between">
-              {formatCurrency(globalStats.totalRevenue)}
-              <DollarSign className="h-5 w-5 text-green-500" />
+              {loading ? '...' : formatCurrency(globalStats.totalRevenue)}
+              <TakaIcon className="h-5 w-5 text-green-500" />
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-xs flex items-center text-green-500">
               <TrendingUp className="h-3 w-3 mr-1" />
-              <span>8% from last month</span>
+              <span>Platform wide</span>
             </div>
+            {user && (
+              <div className="mt-2 text-xs text-gray-600">
+                Your revenue: {formatCurrency(userStats.userRevenue)}
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -226,15 +450,20 @@ export default function Dashboard() {
           <CardHeader className="pb-2">
             <CardDescription>Total Sales</CardDescription>
             <CardTitle className="text-2xl flex items-center justify-between">
-              {globalStats.totalSales}
+              {loading ? '...' : globalStats.totalSales}
               <ShoppingCart className="h-5 w-5 text-purple-500" />
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-xs flex items-center text-green-500">
               <TrendingUp className="h-3 w-3 mr-1" />
-              <span>5% from last month</span>
+              <span>Platform wide</span>
             </div>
+            {user && (
+              <div className="mt-2 text-xs text-gray-600">
+                Your sales: {userStats.userSales}
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -242,15 +471,20 @@ export default function Dashboard() {
           <CardHeader className="pb-2">
             <CardDescription>Total Products</CardDescription>
             <CardTitle className="text-2xl flex items-center justify-between">
-              {globalStats.totalProducts}
+              {loading ? '...' : globalStats.totalProducts}
               <Package className="h-5 w-5 text-orange-500" />
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-xs flex items-center text-green-500">
               <TrendingUp className="h-3 w-3 mr-1" />
-              <span>3% from last month</span>
+              <span>Platform wide</span>
             </div>
+            {user && (
+              <div className="mt-2 text-xs text-gray-600">
+                Your products: {userStats.userProducts}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -283,10 +517,10 @@ export default function Dashboard() {
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="name" />
                     <YAxis 
-                      tickFormatter={(value) => `$${value}`}
+                      tickFormatter={(value) => `৳${value}`}
                     />
                     <Tooltip 
-                      formatter={(value) => [`$${value}`, 'Revenue']}
+                      formatter={(value) => [`৳${value}`, 'Revenue']}
                     />
                     <Area 
                       type="monotone" 
@@ -340,7 +574,7 @@ export default function Dashboard() {
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
                 Recent Transactions
-                <DollarSign className="h-5 w-5 text-green-500" />
+                <TakaIcon className="h-5 w-5 text-green-500" />
               </CardTitle>
               <CardDescription>Latest financial activities</CardDescription>
             </CardHeader>
@@ -380,6 +614,39 @@ export default function Dashboard() {
         
         {/* Right Column */}
         <div className="space-y-6">
+          {/* Shops Card - New card showing total shops */}
+          <Card className="shadow-sm">
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between">
+                Shops
+                <ShoppingBag className="h-5 w-5 text-indigo-500" />
+              </CardTitle>
+              <CardDescription>Total shops on the platform</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold mb-4">{loading ? '...' : globalStats.totalShops}</div>
+              {user && (
+                <div className="text-sm text-gray-600">
+                  Your shops: {userStats.userShops}
+                  {userStats.userShops === 0 && user && (
+                    <div className="mt-2">
+                      <Button asChild variant="outline" size="sm">
+                        <a href="/admin">Add Your First Shop</a>
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
+              {!user && (
+                <div className="mt-2">
+                  <Button asChild variant="outline" size="sm">
+                    <a href="/signin">Sign In to Add Shops</a>
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+          
           {/* Sales by Category Pie Chart */}
           <Card className="shadow-sm">
             <CardHeader>
@@ -487,30 +754,54 @@ export default function Dashboard() {
           <CardDescription>Frequently used functions</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-2">
-          <Button variant="default" size="sm">
-            <ShoppingCart className="h-4 w-4 mr-1" />
-            New Sale
-          </Button>
-          <Button variant="secondary" size="sm">
-            <BarChart className="h-4 w-4 mr-1" />
-            Reports
-          </Button>
-          <Button variant="outline" size="sm">
-            <Package className="h-4 w-4 mr-1" />
-            Inventory
-          </Button>
-          <Button variant="outline" size="sm">
-            <Users className="h-4 w-4 mr-1" />
-            Customers
-          </Button>
-          <Button variant="outline" size="sm">
-            <Info className="h-4 w-4 mr-1" />
-            Help & Support
+          {user ? (
+            <>
+              <Button asChild variant="default" size="sm">
+                <a href="/admin">
+                  <ShoppingCart className="h-4 w-4 mr-1" />
+                  Manage Shop
+                </a>
+              </Button>
+              <Button asChild variant="secondary" size="sm">
+                <a href="/admin/dashboard">
+                  <BarChart className="h-4 w-4 mr-1" />
+                  Analytics
+                </a>
+              </Button>
+              <Button asChild variant="outline" size="sm">
+                <a href="/admin">
+                  <Package className="h-4 w-4 mr-1" />
+                  Products
+                </a>
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button asChild variant="default" size="sm">
+                <a href="/signin">
+                  <ShoppingCart className="h-4 w-4 mr-1" />
+                  Sign In
+                </a>
+              </Button>
+              <Button asChild variant="secondary" size="sm">
+                <a href="/signup">
+                  <Users className="h-4 w-4 mr-1" />
+                  Register
+                </a>
+              </Button>
+            </>
+          )}
+          <Button asChild variant="outline" size="sm">
+            <a href="/about">
+              <Info className="h-4 w-4 mr-1" />
+              Help & Support
+            </a>
           </Button>
         </CardContent>
       </Card>
     </div>
   );
 
-  return user ? <DashboardContent /> : <DashboardContent />;
+  // We're removing the Protected wrapper since we want all users to see the dashboard
+  return <DashboardContent />;
 }
