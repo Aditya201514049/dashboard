@@ -7,19 +7,52 @@ import {
   getShopProducts,
   getShopSales,
   getProductSales,
+  db
 } from "@/lib/firestore";
+import { collection, query, where, getDocs, orderBy, limit } from "firebase/firestore";
 
 // Icons
+import { 
+  Calendar, 
+  ShoppingBag, 
+  Package, 
+  DollarSign, 
+  BarChart2, 
+  PieChart, 
+  TrendingUp, 
+  TrendingDown,
+  Users,
+  Filter,
+  ArrowUpRight,
+  ArrowDownRight,
+  Layers,
+  Search
+} from "lucide-react";
+
+// Shadcn UI Components
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+
+// Recharts Components
 import {
-  FiShoppingBag,
-  FiBox,
-  FiDollarSign,
-  FiBarChart2,
-  FiPieChart,
-  FiActivity,
-  FiArrowUp,
-  FiArrowDown,
-} from "react-icons/fi";
+  AreaChart,
+  Area,
+  BarChart,
+  Bar,
+  PieChart as RechartsPieChart,
+  Pie,
+  Cell,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer
+} from "recharts";
 
 const Dashboard = () => {
   const { user, loading: authLoading } = useAuth();
@@ -29,39 +62,109 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedShop, setSelectedShop] = useState(null);
-  const [summaryStats, setSummaryStats] = useState({
+  const [globalStats, setGlobalStats] = useState({
+    totalShops: 0,
+    totalProducts: 0,
+    totalSales: 0,
+    totalRevenue: 0,
+    totalUsers: 0,
+  });
+  const [userStats, setUserStats] = useState({
     totalShops: 0,
     totalProducts: 0,
     totalSales: 0,
     totalRevenue: 0,
   });
-
-  // Load user shops on component mount
+  
+  // Date range filtering
+  const [dateRange, setDateRange] = useState({
+    from: new Date(new Date().setDate(new Date().getDate() - 30)), // Last 30 days
+    to: new Date()
+  });
+  const [showCalendar, setShowCalendar] = useState(false);
+  
+  // Get global stats for all users
   useEffect(() => {
-    async function loadShops() {
+    async function loadGlobalStats() {
+      try {
+        setLoading(true);
+        
+        // Count total shops
+        const shopsQuery = query(collection(db, "shops"));
+        const shopsSnapshot = await getDocs(shopsQuery);
+        const totalShops = shopsSnapshot.size;
+        
+        // Count total products
+        const productsQuery = query(collection(db, "products"));
+        const productsSnapshot = await getDocs(productsQuery);
+        const totalProducts = productsSnapshot.size;
+        
+        // Count total sales and revenue
+        const salesQuery = query(collection(db, "sales"));
+        const salesSnapshot = await getDocs(salesQuery);
+        let totalSales = salesSnapshot.size;
+        let totalRevenue = 0;
+        
+        salesSnapshot.forEach((doc) => {
+          const sale = doc.data();
+          totalRevenue += parseFloat(sale.unitPrice) * parseInt(sale.quantity || 1);
+        });
+        
+        // Count total users
+        const usersQuery = query(collection(db, "users"));
+        const usersSnapshot = await getDocs(usersQuery);
+        const totalUsers = usersSnapshot.size;
+        
+        setGlobalStats({
+          totalShops,
+          totalProducts,
+          totalSales,
+          totalRevenue,
+          totalUsers
+        });
+        
+        setLoading(false);
+      } catch (error) {
+        console.error("Error loading global stats:", error);
+        setError("Failed to load global statistics.");
+        setLoading(false);
+      }
+    }
+    
+    loadGlobalStats();
+  }, []);
+  
+  // Load user shops and stats if user is logged in
+  useEffect(() => {
+    async function loadUserData() {
       if (user && !authLoading) {
         try {
           setLoading(true);
+          
+          // Get user's shops
           const userShops = await getUserShops(user.uid);
           setShops(userShops);
-          setSummaryStats(prev => ({ ...prev, totalShops: userShops.length }));
           
+          // Set user stats
+          setUserStats(prev => ({ ...prev, totalShops: userShops.length }));
+          
+          // Set first shop as selected if available
           if (userShops.length > 0 && !selectedShop) {
             setSelectedShop(userShops[0]);
           }
           
           setLoading(false);
         } catch (error) {
-          console.error("Error loading shops:", error);
-          setError("Failed to load shops. Please try again.");
+          console.error("Error loading user data:", error);
+          setError("Failed to load your shop data.");
           setLoading(false);
         }
       }
     }
-
-    loadShops();
+    
+    loadUserData();
   }, [user, authLoading]);
-
+  
   // Load shop products and sales when a shop is selected
   useEffect(() => {
     async function loadShopData() {
@@ -72,20 +175,32 @@ const Dashboard = () => {
           // Load products for the selected shop
           const shopProducts = await getShopProducts(selectedShop.id);
           setProductsData(shopProducts);
-          setSummaryStats(prev => ({ ...prev, totalProducts: shopProducts.length }));
+          setUserStats(prev => ({ ...prev, totalProducts: shopProducts.length }));
           
           // Load sales for the selected shop
           const shopSales = await getShopSales(selectedShop.id);
-          setSalesData(shopSales);
+          
+          // Filter sales by date range if needed
+          const filteredSales = shopSales.filter(sale => {
+            if (!dateRange.from || !dateRange.to) return true;
+            
+            const saleDate = sale.createdAt?.toDate ? 
+              sale.createdAt.toDate() : 
+              new Date(sale.createdAt);
+              
+            return saleDate >= dateRange.from && saleDate <= dateRange.to;
+          });
+          
+          setSalesData(filteredSales);
           
           // Calculate total revenue and sales
-          const totalRevenue = shopSales.reduce((sum, sale) => {
-            return sum + (parseFloat(sale.unitPrice) * parseInt(sale.quantity));
+          const totalRevenue = filteredSales.reduce((sum, sale) => {
+            return sum + (parseFloat(sale.unitPrice) * parseInt(sale.quantity || 1));
           }, 0);
           
-          setSummaryStats(prev => ({ 
+          setUserStats(prev => ({ 
             ...prev, 
-            totalSales: shopSales.length,
+            totalSales: filteredSales.length,
             totalRevenue: totalRevenue
           }));
           
@@ -97,10 +212,10 @@ const Dashboard = () => {
         }
       }
     }
-
+    
     loadShopData();
-  }, [selectedShop]);
-
+  }, [selectedShop, dateRange]);
+  
   // Format currency
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-US', {
@@ -108,39 +223,21 @@ const Dashboard = () => {
       currency: 'USD',
     }).format(amount);
   };
-
-  // If authentication is loading or user is not logged in
-  if (authLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-800 mb-4">Access Denied</h1>
-          <p className="text-gray-600 mb-8">You need to be logged in to access this page.</p>
-          <a
-            href="/signin"
-            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
-          >
-            Sign In
-          </a>
-        </div>
-      </div>
-    );
-  }
-
+  
+  // Format date
+  const formatDate = (date) => {
+    if (!date) return '';
+    const d = new Date(date);
+    return d.toLocaleDateString();
+  };
+  
   // Group sales by date
   const salesByDate = salesData.reduce((acc, sale) => {
     // Convert Firestore timestamp or date string to date string
     const saleDate = sale.date || 
-      (sale.createdAt?.toDate ? sale.createdAt.toDate().toISOString().split('T')[0] : 
-      new Date(sale.createdAt).toISOString().split('T')[0]);
+      (sale.createdAt?.toDate ? 
+        sale.createdAt.toDate().toISOString().split('T')[0] : 
+        new Date(sale.createdAt).toISOString().split('T')[0]);
     
     if (!acc[saleDate]) {
       acc[saleDate] = {
@@ -150,40 +247,30 @@ const Dashboard = () => {
     }
     
     acc[saleDate].totalSales += 1;
-    acc[saleDate].totalRevenue += parseFloat(sale.unitPrice) * parseInt(sale.quantity);
+    acc[saleDate].totalRevenue += parseFloat(sale.unitPrice) * parseInt(sale.quantity || 1);
     
     return acc;
   }, {});
-
-  // Get sales data for last 7 days
-  const getLast7DaysSales = () => {
-    const dates = [];
-    const salesCounts = [];
-    const revenueData = [];
-    
-    // Generate the last 7 days
-    for (let i = 6; i >= 0; i--) {
-      const date = new Date();
-      date.setDate(date.getDate() - i);
-      const dateString = date.toISOString().split('T')[0];
-      dates.push(dateString);
-      
-      // Check if we have sales for this date
-      if (salesByDate[dateString]) {
-        salesCounts.push(salesByDate[dateString].totalSales);
-        revenueData.push(salesByDate[dateString].totalRevenue);
-      } else {
-        salesCounts.push(0);
-        revenueData.push(0);
-      }
-    }
-    
-    return { dates, salesCounts, revenueData };
-  };
-
-  const { dates, salesCounts, revenueData } = getLast7DaysSales();
   
-  // Get top selling products
+  // Get sales data for chart display
+  const getChartData = () => {
+    const chartData = [];
+    
+    // Sort dates
+    const sortedDates = Object.keys(salesByDate).sort();
+    
+    sortedDates.forEach(date => {
+      chartData.push({
+        date: date,
+        sales: salesByDate[date].totalSales,
+        revenue: salesByDate[date].totalRevenue
+      });
+    });
+    
+    return chartData;
+  };
+  
+  // Get top selling products for pie chart
   const getTopSellingProducts = () => {
     const productSalesMap = {};
     
@@ -191,26 +278,51 @@ const Dashboard = () => {
       if (!productSalesMap[sale.productId]) {
         productSalesMap[sale.productId] = {
           productId: sale.productId,
-          productName: sale.productName,
+          productName: sale.productName || 'Unknown Product',
           totalQuantity: 0,
           totalRevenue: 0
         };
       }
       
-      productSalesMap[sale.productId].totalQuantity += parseInt(sale.quantity);
-      productSalesMap[sale.productId].totalRevenue += parseFloat(sale.unitPrice) * parseInt(sale.quantity);
+      productSalesMap[sale.productId].totalQuantity += parseInt(sale.quantity || 1);
+      productSalesMap[sale.productId].totalRevenue += parseFloat(sale.unitPrice) * parseInt(sale.quantity || 1);
     });
     
     return Object.values(productSalesMap)
       .sort((a, b) => b.totalRevenue - a.totalRevenue)
       .slice(0, 5);
   };
-
+  
+  const chartData = getChartData();
   const topProducts = getTopSellingProducts();
+  
+  // Pie chart colors
+  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
+  
+  // Format percentage for pie chart
+  const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
+    const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+    const x = cx + radius * Math.cos(-midAngle * Math.PI / 180);
+    const y = cy + radius * Math.sin(-midAngle * Math.PI / 180);
+  
+    return (
+      <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central">
+        {`${(percent * 100).toFixed(0)}%`}
+      </text>
+    );
+  };
+  
+  // If authentication is loading
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 md:p-8">
-      {/* Header */}
+    <div className="min-h-screen bg-slate-50 p-4 md:p-8">
       <div className="max-w-7xl mx-auto">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
           <div>
@@ -218,26 +330,87 @@ const Dashboard = () => {
             <p className="text-gray-600 mt-1">Analytics and insights for your business</p>
           </div>
 
-          {/* Shop Selector */}
-          <div className="mt-4 md:mt-0">
-            <select
-              value={selectedShop?.id || ""}
-              onChange={(e) => {
-                const selected = shops.find(shop => shop.id === e.target.value);
-                setSelectedShop(selected);
-              }}
-              className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
-            >
-              {shops.length === 0 ? (
-                <option value="">No shops available</option>
-              ) : (
-                shops.map((shop) => (
-                  <option key={shop.id} value={shop.id}>
-                    {shop.name}
-                  </option>
-                ))
+          <div className="flex flex-col sm:flex-row gap-2 mt-4 md:mt-0">
+            {/* Date Picker */}
+            <div className="relative">
+              <Button 
+                variant="outline" 
+                onClick={() => setShowCalendar(!showCalendar)}
+                className="flex items-center gap-2"
+              >
+                <Calendar className="h-4 w-4" />
+                <span>
+                  {formatDate(dateRange.from)} - {formatDate(dateRange.to)}
+                </span>
+              </Button>
+              
+              {showCalendar && (
+                <div className="absolute right-0 mt-2 p-4 bg-white rounded-md shadow-md z-10">
+                  <div className="flex flex-col sm:flex-row gap-4">
+                    <div>
+                      <h3 className="text-sm font-medium mb-2">Start Date</h3>
+                      <CalendarComponent
+                        mode="single"
+                        selected={dateRange.from}
+                        onSelect={(date) => 
+                          setDateRange(prev => ({ ...prev, from: date }))
+                        }
+                        className="rounded-md border"
+                      />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-medium mb-2">End Date</h3>
+                      <CalendarComponent
+                        mode="single"
+                        selected={dateRange.to}
+                        onSelect={(date) => 
+                          setDateRange(prev => ({ ...prev, to: date }))
+                        }
+                        className="rounded-md border"
+                      />
+                    </div>
+                  </div>
+                  <div className="mt-4 flex justify-end">
+                    <Button 
+                      onClick={() => setShowCalendar(false)}
+                      className="mr-2"
+                      variant="outline"
+                    >
+                      Close
+                    </Button>
+                    <Button 
+                      onClick={() => {
+                        setShowCalendar(false);
+                      }}
+                    >
+                      Apply
+                    </Button>
+                  </div>
+                </div>
               )}
-            </select>
+            </div>
+            
+            {/* Shop Selector (only show if user is logged in) */}
+            {user && (
+              <select
+                value={selectedShop?.id || ""}
+                onChange={(e) => {
+                  const selected = shops.find(shop => shop.id === e.target.value);
+                  setSelectedShop(selected);
+                }}
+                className="block w-full sm:w-auto pl-3 pr-10 py-2 text-base border border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
+              >
+                {shops.length === 0 ? (
+                  <option value="">No shops available</option>
+                ) : (
+                  shops.map((shop) => (
+                    <option key={shop.id} value={shop.id}>
+                      {shop.name}
+                    </option>
+                  ))
+                )}
+              </select>
+            )}
           </div>
         </div>
 
@@ -258,218 +431,445 @@ const Dashboard = () => {
           </div>
         ) : (
           <>
-            {/* Summary Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-              <div className="bg-white rounded-lg shadow p-5">
-                <div className="flex justify-between">
-                  <div>
-                    <p className="text-gray-500 text-sm">Total Shops</p>
-                    <h3 className="text-2xl font-bold text-gray-800 mt-1">{summaryStats.totalShops}</h3>
-                  </div>
-                  <div className="bg-blue-50 p-3 rounded-full">
-                    <FiShoppingBag className="h-6 w-6 text-blue-500" />
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white rounded-lg shadow p-5">
-                <div className="flex justify-between">
-                  <div>
-                    <p className="text-gray-500 text-sm">Total Products</p>
-                    <h3 className="text-2xl font-bold text-gray-800 mt-1">{summaryStats.totalProducts}</h3>
-                  </div>
-                  <div className="bg-green-50 p-3 rounded-full">
-                    <FiBox className="h-6 w-6 text-green-500" />
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white rounded-lg shadow p-5">
-                <div className="flex justify-between">
-                  <div>
-                    <p className="text-gray-500 text-sm">Total Sales</p>
-                    <h3 className="text-2xl font-bold text-gray-800 mt-1">{summaryStats.totalSales}</h3>
-                  </div>
-                  <div className="bg-purple-50 p-3 rounded-full">
-                    <FiBarChart2 className="h-6 w-6 text-purple-500" />
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white rounded-lg shadow p-5">
-                <div className="flex justify-between">
-                  <div>
-                    <p className="text-gray-500 text-sm">Total Revenue</p>
-                    <h3 className="text-2xl font-bold text-gray-800 mt-1">{formatCurrency(summaryStats.totalRevenue)}</h3>
-                  </div>
-                  <div className="bg-yellow-50 p-3 rounded-full">
-                    <FiDollarSign className="h-6 w-6 text-yellow-500" />
-                  </div>
-                </div>
+            {/* Global Stats */}
+            <div className="mb-8">
+              <h2 className="text-xl font-semibold mb-4 flex items-center">
+                <Layers className="mr-2 h-5 w-5" /> 
+                Platform Overview
+              </h2>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardDescription>Total Shops</CardDescription>
+                    <CardTitle className="text-2xl">{globalStats.totalShops}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="pb-2">
+                    <div className="flex items-center">
+                      <ShoppingBag className="h-4 w-4 text-blue-500 mr-1" /> 
+                      <span className="text-xs text-muted-foreground">Platform-wide</span>
+                    </div>
+                  </CardContent>
+                </Card>
+                
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardDescription>Total Products</CardDescription>
+                    <CardTitle className="text-2xl">{globalStats.totalProducts}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="pb-2">
+                    <div className="flex items-center">
+                      <Package className="h-4 w-4 text-green-500 mr-1" /> 
+                      <span className="text-xs text-muted-foreground">Platform-wide</span>
+                    </div>
+                  </CardContent>
+                </Card>
+                
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardDescription>Total Sales</CardDescription>
+                    <CardTitle className="text-2xl">{globalStats.totalSales}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="pb-2">
+                    <div className="flex items-center">
+                      <BarChart2 className="h-4 w-4 text-purple-500 mr-1" /> 
+                      <span className="text-xs text-muted-foreground">Platform-wide</span>
+                    </div>
+                  </CardContent>
+                </Card>
+                
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardDescription>Total Revenue</CardDescription>
+                    <CardTitle className="text-2xl">{formatCurrency(globalStats.totalRevenue)}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="pb-2">
+                    <div className="flex items-center">
+                      <DollarSign className="h-4 w-4 text-yellow-500 mr-1" /> 
+                      <span className="text-xs text-muted-foreground">Platform-wide</span>
+                    </div>
+                  </CardContent>
+                </Card>
+                
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardDescription>Total Users</CardDescription>
+                    <CardTitle className="text-2xl">{globalStats.totalUsers}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="pb-2">
+                    <div className="flex items-center">
+                      <Users className="h-4 w-4 text-indigo-500 mr-1" /> 
+                      <span className="text-xs text-muted-foreground">Active accounts</span>
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
             </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-              {/* Recent Sales Chart */}
-              <div className="bg-white rounded-lg shadow p-5 lg:col-span-2">
-                <h3 className="text-lg font-medium text-gray-800 mb-4">Sales Last 7 Days</h3>
-                <div className="h-64 relative">
-                  {salesCounts.every(count => count === 0) ? (
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <p className="text-gray-500">No sales data available</p>
-                    </div>
-                  ) : (
-                    <div className="h-full flex items-end space-x-2">
-                      {salesCounts.map((count, index) => (
-                        <div key={index} className="flex-1 flex flex-col items-center">
-                          <div 
-                            className="w-full bg-blue-500 rounded-t" 
-                            style={{ 
-                              height: `${count > 0 ? Math.max(15, (count / Math.max(...salesCounts)) * 100) : 0}%` 
-                            }}
-                          ></div>
-                          <div className="text-xs text-gray-500 mt-2">{dates[index].split('-').slice(1).join('/')}</div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Top Products */}
-              <div className="bg-white rounded-lg shadow p-5">
-                <h3 className="text-lg font-medium text-gray-800 mb-4">Top Products</h3>
-                {topProducts.length === 0 ? (
-                  <div className="flex justify-center items-center h-52">
-                    <p className="text-gray-500">No sales data available</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {topProducts.map((product, index) => (
-                      <div key={index} className="flex items-center justify-between border-b pb-3 last:border-b-0">
+            
+            {/* User Stats (only if logged in) */}
+            {user && (
+              <div className="mb-8">
+                <h2 className="text-xl font-semibold mb-4 flex items-center">
+                  <Users className="mr-2 h-5 w-5" /> 
+                  Your Business Stats
+                </h2>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardDescription>Your Shops</CardDescription>
+                      <CardTitle className="text-2xl">{userStats.totalShops}</CardTitle>
+                    </CardHeader>
+                    <CardContent className="pb-2">
+                      <div className="flex items-center justify-between">
                         <div className="flex items-center">
-                          <span className="text-sm font-medium text-gray-600 w-5">{index + 1}.</span>
-                          <span className="ml-2 text-sm font-medium text-gray-800">{product.productName}</span>
+                          <ShoppingBag className="h-4 w-4 text-blue-500 mr-1" /> 
+                          <span className="text-xs text-muted-foreground">Total count</span>
                         </div>
-                        <div className="flex flex-col items-end">
-                          <span className="text-sm font-medium text-gray-800">{formatCurrency(product.totalRevenue)}</span>
-                          <span className="text-xs text-gray-500">{product.totalQuantity} sold</span>
+                        <div className="flex items-center text-green-500">
+                          <ArrowUpRight className="h-3 w-3 mr-1" />
+                          <span className="text-xs">100%</span>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                )}
+                    </CardContent>
+                  </Card>
+                  
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardDescription>Your Products</CardDescription>
+                      <CardTitle className="text-2xl">{userStats.totalProducts}</CardTitle>
+                    </CardHeader>
+                    <CardContent className="pb-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center">
+                          <Package className="h-4 w-4 text-green-500 mr-1" /> 
+                          <span className="text-xs text-muted-foreground">In selected shop</span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardDescription>Your Sales</CardDescription>
+                      <CardTitle className="text-2xl">{userStats.totalSales}</CardTitle>
+                    </CardHeader>
+                    <CardContent className="pb-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center">
+                          <BarChart2 className="h-4 w-4 text-purple-500 mr-1" /> 
+                          <span className="text-xs text-muted-foreground">In date range</span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardDescription>Your Revenue</CardDescription>
+                      <CardTitle className="text-2xl">{formatCurrency(userStats.totalRevenue)}</CardTitle>
+                    </CardHeader>
+                    <CardContent className="pb-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center">
+                          <DollarSign className="h-4 w-4 text-yellow-500 mr-1" /> 
+                          <span className="text-xs text-muted-foreground">In date range</span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
               </div>
+            )}
+            
+            {/* Charts Section */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+              {/* Sales Over Time */}
+              <Card className="lg:col-span-2">
+                <CardHeader>
+                  <CardTitle>Sales Trend</CardTitle>
+                  <CardDescription>
+                    Sales and revenue over time
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-80">
+                    {chartData.length === 0 ? (
+                      <div className="h-full flex items-center justify-center">
+                        <p className="text-gray-500">No sales data available for the selected period</p>
+                      </div>
+                    ) : (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart
+                          data={chartData}
+                          margin={{
+                            top: 10,
+                            right: 30,
+                            left: 0,
+                            bottom: 0,
+                          }}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="date" tick={{fontSize: 12}} />
+                          <YAxis yAxisId="left" tick={{fontSize: 12}} />
+                          <YAxis yAxisId="right" orientation="right" tick={{fontSize: 12}} />
+                          <Tooltip />
+                          <Legend />
+                          <Area
+                            yAxisId="left"
+                            type="monotone"
+                            dataKey="sales"
+                            stroke="#8884d8"
+                            fill="#8884d8"
+                            activeDot={{ r: 8 }}
+                            name="Total Sales"
+                          />
+                          <Area
+                            yAxisId="right"
+                            type="monotone"
+                            dataKey="revenue"
+                            stroke="#82ca9d"
+                            fill="#82ca9d"
+                            name="Revenue ($)"
+                          />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Product Distribution */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Top Products</CardTitle>
+                  <CardDescription>
+                    Revenue distribution by product
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-80 flex flex-col">
+                    {topProducts.length === 0 ? (
+                      <div className="h-full flex items-center justify-center">
+                        <p className="text-gray-500">No product data available</p>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="h-60">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <RechartsPieChart>
+                              <Pie
+                                data={topProducts}
+                                cx="50%"
+                                cy="50%"
+                                labelLine={false}
+                                label={renderCustomizedLabel}
+                                outerRadius={80}
+                                fill="#8884d8"
+                                dataKey="totalRevenue"
+                                nameKey="productName"
+                              >
+                                {topProducts.map((entry, index) => (
+                                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                ))}
+                              </Pie>
+                              <Tooltip formatter={(value) => formatCurrency(value)} />
+                            </RechartsPieChart>
+                          </ResponsiveContainer>
+                        </div>
+                        <div className="mt-2">
+                          <div className="grid grid-cols-1 gap-1">
+                            {topProducts.map((product, index) => (
+                              <div key={index} className="flex items-center text-xs">
+                                <div
+                                  className="w-3 h-3 rounded-full mr-2"
+                                  style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                                ></div>
+                                <span className="truncate">{product.productName}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
             </div>
 
-            {/* Shop and Product Relationship */}
-            <div className="bg-white rounded-lg shadow mb-8">
-              <div className="border-b border-gray-200 p-5">
-                <h3 className="text-lg font-medium text-gray-800">Shop Structure</h3>
-              </div>
-              <div className="p-5">
-                {shops.length === 0 ? (
+            {/* Recent Sales Table */}
+            <Card className="mb-8">
+              <CardHeader>
+                <CardTitle>Recent Sales</CardTitle>
+                <CardDescription>Latest transactions in the selected period</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {salesData.length === 0 ? (
                   <div className="text-center py-8">
-                    <p className="text-gray-500">No shops available. Create a shop in the Admin page.</p>
-                    <a 
-                      href="/admin" 
-                      className="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+                    <p className="text-gray-500">No sales data available for the selected period.</p>
+                    {user && (
+                      <a 
+                        href="/admin" 
+                        className="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+                      >
+                        Go to Admin
+                      </a>
+                    )}
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Date</TableHead>
+                          <TableHead>Product</TableHead>
+                          <TableHead>Quantity</TableHead>
+                          <TableHead>Unit Price</TableHead>
+                          <TableHead className="text-right">Total</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {salesData.slice(0, 10).map((sale, index) => {
+                          const saleDate = sale.createdAt?.toDate ? sale.createdAt.toDate() : new Date(sale.createdAt);
+                          const total = parseFloat(sale.unitPrice) * parseInt(sale.quantity || 1);
+                          
+                          return (
+                            <TableRow key={sale.id || index}>
+                              <TableCell>{saleDate.toLocaleDateString()}</TableCell>
+                              <TableCell>{sale.productName || "Unknown Product"}</TableCell>
+                              <TableCell>{sale.quantity || 1}</TableCell>
+                              <TableCell>{formatCurrency(sale.unitPrice)}</TableCell>
+                              <TableCell className="text-right">{formatCurrency(total)}</TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                      {salesData.length > 10 && (
+                        <TableCaption>
+                          Showing 10 of {salesData.length} recent sales.
+                        </TableCaption>
+                      )}
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Shop Structure (only if user is logged in) */}
+            {user && selectedShop && (
+              <Card className="mb-8">
+                <CardHeader>
+                  <CardTitle>Shop Structure</CardTitle>
+                  <CardDescription>Products and sales hierarchy</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {shops.length === 0 ? (
+                    <div className="text-center py-8">
+                      <p className="text-gray-500">No shops available. Create a shop in the Admin page.</p>
+                      <a 
+                        href="/admin" 
+                        className="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+                      >
+                        Go to Admin
+                      </a>
+                    </div>
+                  ) : (
+                    <div className="overflow-auto">
+                      <div className="min-w-max">
+                        <div className="flex flex-col">
+                          {shops.map((shop) => {
+                            // Find products for this shop
+                            const shopProducts = productsData.filter(product => 
+                              selectedShop && product.shopId === selectedShop.id
+                            );
+                            
+                            return (
+                              <div key={shop.id} className={`mb-6 ${selectedShop?.id !== shop.id ? 'opacity-50' : ''}`}>
+                                <div className="flex items-center mb-2">
+                                  <div className="bg-blue-100 text-blue-800 rounded-full p-2 mr-2">
+                                    <ShoppingBag className="h-5 w-5" />
+                                  </div>
+                                  <span className="font-medium text-lg">{shop.name}</span>
+                                  {shop.location && <span className="ml-2 text-sm text-gray-500">({shop.location})</span>}
+                                </div>
+                                
+                                {selectedShop?.id === shop.id && (
+                                  <div className="ml-8 pl-4 border-l-2 border-dashed border-gray-300">
+                                    {shopProducts.length === 0 ? (
+                                      <p className="text-gray-500 italic py-2">No products yet</p>
+                                    ) : (
+                                      shopProducts.map((product) => {
+                                        // Find sales for this product
+                                        const productSales = salesData.filter(sale => 
+                                          sale.productId === product.id
+                                        );
+                                        
+                                        return (
+                                          <div key={product.id} className="mb-4">
+                                            <div className="flex items-center mb-2">
+                                              <div className="bg-green-100 text-green-800 rounded-full p-2 mr-2">
+                                                <Package className="h-4 w-4" />
+                                              </div>
+                                              <span className="font-medium">{product.name}</span>
+                                              <span className="ml-2 text-sm text-gray-500">${product.price}</span>
+                                              {product.stock && (
+                                                <span className="ml-2 text-xs bg-gray-100 px-2 py-1 rounded">
+                                                  Stock: {product.stock}
+                                                </span>
+                                              )}
+                                            </div>
+                                            
+                                            <div className="ml-8 pl-4 border-l-2 border-dotted border-gray-200">
+                                              {productSales.length === 0 ? (
+                                                <p className="text-gray-500 italic py-1 text-sm">No sales yet</p>
+                                              ) : (
+                                                <div className="text-sm">
+                                                  <div className="flex items-center text-gray-500 mb-1">
+                                                    <DollarSign className="h-3 w-3 mr-1" /> 
+                                                    {productSales.length} sales totaling 
+                                                    {' ' + formatCurrency(productSales.reduce((sum, sale) => 
+                                                      sum + (parseFloat(sale.unitPrice) * parseInt(sale.quantity || 1)), 0
+                                                    ))}
+                                                  </div>
+                                                </div>
+                                              )}
+                                            </div>
+                                          </div>
+                                        );
+                                      })
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Call to Action (only if user is logged in) */}
+            {user && (
+              <Card className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white">
+                <CardContent className="pt-6 pb-6">
+                  <div className="md:flex justify-between items-center">
+                    <div>
+                      <h3 className="text-xl font-bold mb-2">Ready to add more data?</h3>
+                      <p className="mb-4 md:mb-0 opacity-90">Go to the admin page to add shops, products, and record sales.</p>
+                    </div>
+                    <a
+                      href="/admin"
+                      className="inline-block px-6 py-3 bg-white text-indigo-600 font-medium rounded-md hover:bg-gray-100 transition duration-150"
                     >
                       Go to Admin
                     </a>
                   </div>
-                ) : (
-                  <div className="overflow-auto">
-                    <div className="min-w-max">
-                      <div className="flex flex-col">
-                        {shops.map((shop) => {
-                          // Find products for this shop
-                          const shopProducts = productsData.filter(product => 
-                            selectedShop && product.shopId === selectedShop.id
-                          );
-                          
-                          return (
-                            <div key={shop.id} className={`mb-6 ${selectedShop?.id !== shop.id ? 'opacity-50' : ''}`}>
-                              <div className="flex items-center mb-2">
-                                <div className="bg-blue-100 text-blue-800 rounded-full p-2 mr-2">
-                                  <FiShoppingBag className="h-5 w-5" />
-                                </div>
-                                <span className="font-medium text-lg">{shop.name}</span>
-                                {shop.location && <span className="ml-2 text-sm text-gray-500">({shop.location})</span>}
-                              </div>
-                              
-                              {selectedShop?.id === shop.id && (
-                                <div className="ml-8 pl-4 border-l-2 border-dashed border-gray-300">
-                                  {shopProducts.length === 0 ? (
-                                    <p className="text-gray-500 italic py-2">No products yet</p>
-                                  ) : (
-                                    shopProducts.map((product) => {
-                                      // Find sales for this product
-                                      const productSales = salesData.filter(sale => 
-                                        sale.productId === product.id
-                                      );
-                                      
-                                      return (
-                                        <div key={product.id} className="mb-4">
-                                          <div className="flex items-center mb-2">
-                                            <div className="bg-green-100 text-green-800 rounded-full p-2 mr-2">
-                                              <FiBox className="h-4 w-4" />
-                                            </div>
-                                            <span className="font-medium">{product.name}</span>
-                                            <span className="ml-2 text-sm text-gray-500">${product.price}</span>
-                                            {product.stock && (
-                                              <span className="ml-2 text-xs bg-gray-100 px-2 py-1 rounded">
-                                                Stock: {product.stock}
-                                              </span>
-                                            )}
-                                          </div>
-                                          
-                                          <div className="ml-8 pl-4 border-l-2 border-dotted border-gray-200">
-                                            {productSales.length === 0 ? (
-                                              <p className="text-gray-500 italic py-1 text-sm">No sales yet</p>
-                                            ) : (
-                                              <div className="text-sm">
-                                                <div className="flex items-center text-gray-500 mb-1">
-                                                  <FiDollarSign className="h-3 w-3 mr-1" /> 
-                                                  {productSales.length} sales totaling 
-                                                  {' ' + formatCurrency(productSales.reduce((sum, sale) => 
-                                                    sum + (parseFloat(sale.unitPrice) * parseInt(sale.quantity)), 0
-                                                  ))}
-                                                </div>
-                                              </div>
-                                            )}
-                                          </div>
-                                        </div>
-                                      );
-                                    })
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Call to Action */}
-            <div className="bg-gradient-to-r from-blue-500 to-indigo-600 rounded-lg shadow-lg p-6 text-white">
-              <div className="md:flex justify-between items-center">
-                <div>
-                  <h3 className="text-xl font-bold mb-2">Ready to add more data?</h3>
-                  <p className="mb-4 md:mb-0 opacity-90">Go to the admin page to add shops, products, and record sales.</p>
-                </div>
-                <a
-                  href="/admin"
-                  className="inline-block px-6 py-3 bg-white text-indigo-600 font-medium rounded-md hover:bg-gray-100 transition duration-150"
-                >
-                  Go to Admin
-                </a>
-              </div>
-            </div>
+                </CardContent>
+              </Card>
+            )}
           </>
         )}
       </div>
