@@ -51,20 +51,45 @@ const Admin = () => {
     return today.toISOString().split('T')[0];
   }
   
+  // Debug user auth status
+  useEffect(() => {
+    console.log("Auth state changed:", { 
+      isAuthenticated: !!user, 
+      userId: user?.uid,
+      authLoading,
+    });
+    
+    if (user) {
+      console.log("User authenticated:", {
+        uid: user.uid,
+        displayName: user.displayName,
+        email: user.email
+      });
+    }
+  }, [user, authLoading]);
+  
   // Load user shops on component mount
   useEffect(() => {
     async function loadShops() {
       if (user && !authLoading) {
         try {
+          console.log("Loading shops for user:", user.uid);
           setLoading(true);
+          setError(null); // Clear any previous errors
+          
           const userShops = await getUserShops(user.uid);
+          console.log("Loaded shops successfully:", userShops);
           setShops(userShops);
           setLoading(false);
         } catch (error) {
           console.error("Error loading shops:", error);
-          setError("Failed to load shops. Please try again.");
+          setError(`Failed to load shops: ${error.message || 'Unknown error'}`);
           setLoading(false);
         }
+      } else if (!authLoading && !user) {
+        console.log("No authenticated user, cannot load shops");
+        setError("You must be signed in to view shops");
+        setLoading(false);
       }
     }
     
@@ -76,13 +101,17 @@ const Admin = () => {
     async function loadProducts() {
       if (selectedShop) {
         try {
+          console.log("Loading products for shop:", selectedShop.id);
           setLoading(true);
+          setError(null); // Clear any previous errors
+          
           const shopProducts = await getShopProducts(selectedShop.id);
+          console.log("Loaded products successfully:", shopProducts);
           setProducts(shopProducts);
           setLoading(false);
         } catch (error) {
           console.error("Error loading products:", error);
-          setError("Failed to load products. Please try again.");
+          setError(`Failed to load products: ${error.message || 'Unknown error'}`);
           setLoading(false);
         }
       }
@@ -132,6 +161,11 @@ const Admin = () => {
   const handleShopSubmit = async (e) => {
     e.preventDefault();
     
+    if (!user) {
+      setError("You must be signed in to add a shop");
+      return;
+    }
+    
     if (!shopForm.name || !shopForm.location) {
       setError("Please fill in all required fields.");
       return;
@@ -139,9 +173,12 @@ const Admin = () => {
     
     try {
       setLoading(true);
+      setError(null); // Clear any previous errors
+      
+      console.log("Submitting shop with user ID:", user.uid);
       const shopId = await addShop(shopForm, user.uid);
       
-      // Add the new shop to the shops list
+      // Add the new shop to the shops list with proper timestamps
       const newShop = { 
         id: shopId, 
         ...shopForm, 
@@ -149,12 +186,13 @@ const Admin = () => {
         createdAt: new Date()
       };
       
+      console.log("Shop added successfully:", newShop);
       setShops((prevShops) => [newShop, ...prevShops]);
       closeModal();
       setLoading(false);
     } catch (error) {
       console.error("Error adding shop:", error);
-      setError("Failed to add shop. Please try again.");
+      setError(`Failed to add shop: ${error.message || 'Unknown error'}`);
       setLoading(false);
     }
   };
@@ -162,6 +200,11 @@ const Admin = () => {
   // Handle product submission
   const handleProductSubmit = async (e) => {
     e.preventDefault();
+    
+    if (!user) {
+      setError("You must be signed in to add a product");
+      return;
+    }
     
     if (!productForm.name || !productForm.price) {
       setError("Please fill in all required fields.");
@@ -175,9 +218,12 @@ const Admin = () => {
     
     try {
       setLoading(true);
+      setError(null); // Clear any previous errors
+      
+      console.log("Submitting product with shop ID:", selectedShop.id, "and user ID:", user.uid);
       const productId = await addProduct(productForm, selectedShop.id, user.uid);
       
-      // Add the new product to the products list
+      // Add the new product to the products list with proper timestamps
       const newProduct = { 
         id: productId, 
         ...productForm, 
@@ -186,12 +232,13 @@ const Admin = () => {
         createdAt: new Date()
       };
       
+      console.log("Product added successfully:", newProduct);
       setProducts((prevProducts) => [newProduct, ...prevProducts]);
       closeModal();
       setLoading(false);
     } catch (error) {
       console.error("Error adding product:", error);
-      setError("Failed to add product. Please try again.");
+      setError(`Failed to add product: ${error.message || 'Unknown error'}`);
       setLoading(false);
     }
   };
@@ -199,6 +246,11 @@ const Admin = () => {
   // Handle sale submission
   const handleSaleSubmit = async (e) => {
     e.preventDefault();
+    
+    if (!user) {
+      setError("You must be signed in to record a sale");
+      return;
+    }
     
     if (!saleForm.quantity) {
       setError("Please fill in all required fields.");
@@ -210,8 +262,16 @@ const Admin = () => {
       return;
     }
     
+    if (!selectedShop) {
+      setError("Shop information is missing.");
+      return;
+    }
+    
     try {
       setLoading(true);
+      setError(null); // Clear any previous errors
+      
+      console.log("Recording sale for product ID:", selectedProduct.id, "shop ID:", selectedShop.id, "and user ID:", user.uid);
       await addSale(
         saleForm, 
         selectedProduct.id, 
@@ -227,6 +287,7 @@ const Admin = () => {
           stock: Math.max(0, newStock).toString()
         };
         
+        console.log("Updating product stock:", updatedProduct);
         setProducts((prevProducts) => 
           prevProducts.map(prod => 
             prod.id === selectedProduct.id ? updatedProduct : prod
@@ -236,11 +297,12 @@ const Admin = () => {
         setSelectedProduct(updatedProduct);
       }
       
+      console.log("Sale recorded successfully");
       closeModal();
       setLoading(false);
     } catch (error) {
       console.error("Error adding sale:", error);
-      setError("Failed to add sale. Please try again.");
+      setError(`Failed to record sale: ${error.message || 'Unknown error'}`);
       setLoading(false);
     }
   };
@@ -269,15 +331,17 @@ const Admin = () => {
     }
   };
   
-  // If authentication is loading or user is not logged in
+  // If authentication is loading, show loading spinner
   if (authLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+        <p className="ml-2 text-gray-600">Checking authentication...</p>
       </div>
     );
   }
   
+  // If user is not logged in, show access denied message
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
