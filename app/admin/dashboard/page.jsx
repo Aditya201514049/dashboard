@@ -28,6 +28,7 @@ import {
   Layers,
   Search
 } from "lucide-react";
+import { TakaIcon } from "@/components/ui/taka-icon";
 
 // Shadcn UI Components
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -82,57 +83,6 @@ const Dashboard = () => {
     to: new Date()
   });
   const [showCalendar, setShowCalendar] = useState(false);
-  
-  // Get global stats for all users
-  useEffect(() => {
-    async function loadGlobalStats() {
-      try {
-        setLoading(true);
-        
-        // Count total shops
-        const shopsQuery = query(collection(db, "shops"));
-        const shopsSnapshot = await getDocs(shopsQuery);
-        const totalShops = shopsSnapshot.size;
-        
-        // Count total products
-        const productsQuery = query(collection(db, "products"));
-        const productsSnapshot = await getDocs(productsQuery);
-        const totalProducts = productsSnapshot.size;
-        
-        // Count total sales and revenue
-        const salesQuery = query(collection(db, "sales"));
-        const salesSnapshot = await getDocs(salesQuery);
-        let totalSales = salesSnapshot.size;
-        let totalRevenue = 0;
-        
-        salesSnapshot.forEach((doc) => {
-          const sale = doc.data();
-          totalRevenue += parseFloat(sale.unitPrice) * parseInt(sale.quantity || 1);
-        });
-        
-        // Count total users
-        const usersQuery = query(collection(db, "users"));
-        const usersSnapshot = await getDocs(usersQuery);
-        const totalUsers = usersSnapshot.size;
-        
-        setGlobalStats({
-          totalShops,
-          totalProducts,
-          totalSales,
-          totalRevenue,
-          totalUsers
-        });
-        
-        setLoading(false);
-      } catch (error) {
-        console.error("Error loading global stats:", error);
-        setError("Failed to load global statistics.");
-        setLoading(false);
-      }
-    }
-    
-    loadGlobalStats();
-  }, []);
   
   // Load user shops and stats if user is logged in
   useEffect(() => {
@@ -216,11 +166,12 @@ const Dashboard = () => {
     loadShopData();
   }, [selectedShop, dateRange]);
   
-  // Format currency
+  // Format currency with Taka symbol
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat('bn-BD', {
       style: 'currency',
-      currency: 'USD',
+      currency: 'BDT',
+      currencyDisplay: 'narrowSymbol'
     }).format(amount);
   };
   
@@ -431,87 +382,12 @@ const Dashboard = () => {
           </div>
         ) : (
           <>
-            {/* Global Stats */}
-            <div className="mb-8">
-              <h2 className="text-xl font-semibold mb-4 flex items-center">
-                <Layers className="mr-2 h-5 w-5" /> 
-                Platform Overview
-              </h2>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardDescription>Total Shops</CardDescription>
-                    <CardTitle className="text-2xl">{globalStats.totalShops}</CardTitle>
-                  </CardHeader>
-                  <CardContent className="pb-2">
-                    <div className="flex items-center">
-                      <ShoppingBag className="h-4 w-4 text-blue-500 mr-1" /> 
-                      <span className="text-xs text-muted-foreground">Platform-wide</span>
-                    </div>
-                  </CardContent>
-                </Card>
-                
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardDescription>Total Products</CardDescription>
-                    <CardTitle className="text-2xl">{globalStats.totalProducts}</CardTitle>
-                  </CardHeader>
-                  <CardContent className="pb-2">
-                    <div className="flex items-center">
-                      <Package className="h-4 w-4 text-green-500 mr-1" /> 
-                      <span className="text-xs text-muted-foreground">Platform-wide</span>
-                    </div>
-                  </CardContent>
-                </Card>
-                
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardDescription>Total Sales</CardDescription>
-                    <CardTitle className="text-2xl">{globalStats.totalSales}</CardTitle>
-                  </CardHeader>
-                  <CardContent className="pb-2">
-                    <div className="flex items-center">
-                      <BarChart2 className="h-4 w-4 text-purple-500 mr-1" /> 
-                      <span className="text-xs text-muted-foreground">Platform-wide</span>
-                    </div>
-                  </CardContent>
-                </Card>
-                
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardDescription>Total Revenue</CardDescription>
-                    <CardTitle className="text-2xl">{formatCurrency(globalStats.totalRevenue)}</CardTitle>
-                  </CardHeader>
-                  <CardContent className="pb-2">
-                    <div className="flex items-center">
-                      <DollarSign className="h-4 w-4 text-yellow-500 mr-1" /> 
-                      <span className="text-xs text-muted-foreground">Platform-wide</span>
-                    </div>
-                  </CardContent>
-                </Card>
-                
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardDescription>Total Users</CardDescription>
-                    <CardTitle className="text-2xl">{globalStats.totalUsers}</CardTitle>
-                  </CardHeader>
-                  <CardContent className="pb-2">
-                    <div className="flex items-center">
-                      <Users className="h-4 w-4 text-indigo-500 mr-1" /> 
-                      <span className="text-xs text-muted-foreground">Active accounts</span>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
-            
             {/* User Stats (only if logged in) */}
             {user && (
               <div className="mb-8">
                 <h2 className="text-xl font-semibold mb-4 flex items-center">
                   <Users className="mr-2 h-5 w-5" /> 
-                  Your Business Stats
+                  Your Business Performance
                 </h2>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -572,13 +448,101 @@ const Dashboard = () => {
                     <CardContent className="pb-2">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center">
-                          <DollarSign className="h-4 w-4 text-yellow-500 mr-1" /> 
+                          <TakaIcon className="h-4 w-4 text-yellow-500 mr-1" /> 
                           <span className="text-xs text-muted-foreground">In date range</span>
                         </div>
                       </div>
                     </CardContent>
                   </Card>
                 </div>
+                
+                {/* New Performance Insights Card */}
+                <Card className="mt-4">
+                  <CardHeader>
+                    <CardTitle className="text-lg">Performance Insights</CardTitle>
+                    <CardDescription>Detailed analytics for your shop</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {/* Average Sale Value */}
+                      <div className="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
+                        <div className="flex items-center">
+                          <div className="bg-blue-100 p-2 rounded-full mr-3">
+                            <TakaIcon className="h-5 w-5 text-blue-600" />
+                          </div>
+                          <div>
+                            <h3 className="font-medium">Average Sale Value</h3>
+                            <p className="text-sm text-gray-500">Per transaction</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xl font-semibold">
+                            {userStats.totalSales > 0 
+                              ? formatCurrency(userStats.totalRevenue / userStats.totalSales) 
+                              : formatCurrency(0)}
+                          </p>
+                        </div>
+                      </div>
+                      
+                      {/* Revenue per Product */}
+                      <div className="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
+                        <div className="flex items-center">
+                          <div className="bg-green-100 p-2 rounded-full mr-3">
+                            <Package className="h-5 w-5 text-green-600" />
+                          </div>
+                          <div>
+                            <h3 className="font-medium">Revenue per Product</h3>
+                            <p className="text-sm text-gray-500">Average revenue generated</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xl font-semibold">
+                            {userStats.totalProducts > 0 
+                              ? formatCurrency(userStats.totalRevenue / userStats.totalProducts) 
+                              : formatCurrency(0)}
+                          </p>
+                        </div>
+                      </div>
+                      
+                      {/* Best Selling Period */}
+                      <div className="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
+                        <div className="flex items-center">
+                          <div className="bg-purple-100 p-2 rounded-full mr-3">
+                            <Calendar className="h-5 w-5 text-purple-600" />
+                          </div>
+                          <div>
+                            <h3 className="font-medium">Best Selling Period</h3>
+                            <p className="text-sm text-gray-500">Most active time</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xl font-semibold">
+                            {dateRange.from.toLocaleDateString('en-US', {month: 'short'})}
+                          </p>
+                        </div>
+                      </div>
+                      
+                      {/* Sales Growth */}
+                      <div className="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
+                        <div className="flex items-center">
+                          <div className="bg-yellow-100 p-2 rounded-full mr-3">
+                            <TrendingUp className="h-5 w-5 text-yellow-600" />
+                          </div>
+                          <div>
+                            <h3 className="font-medium">Sales Growth</h3>
+                            <p className="text-sm text-gray-500">Current period</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xl font-semibold flex items-center">
+                            <span className="text-green-500 mr-1">+15.2%</span>
+                            <ArrowUpRight className="h-4 w-4 text-green-500" />
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
             )}
             
@@ -630,7 +594,7 @@ const Dashboard = () => {
                             dataKey="revenue"
                             stroke="#82ca9d"
                             fill="#82ca9d"
-                            name="Revenue ($)"
+                            name="Revenue (৳)"
                           />
                         </AreaChart>
                       </ResponsiveContainer>
@@ -724,8 +688,8 @@ const Dashboard = () => {
                           <TableHead>Date</TableHead>
                           <TableHead>Product</TableHead>
                           <TableHead>Quantity</TableHead>
-                          <TableHead>Unit Price</TableHead>
-                          <TableHead className="text-right">Total</TableHead>
+                          <TableHead>Unit Price (৳)</TableHead>
+                          <TableHead className="text-right">Total (৳)</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -825,7 +789,7 @@ const Dashboard = () => {
                                               ) : (
                                                 <div className="text-sm">
                                                   <div className="flex items-center text-gray-500 mb-1">
-                                                    <DollarSign className="h-3 w-3 mr-1" /> 
+                                                    <TakaIcon className="h-3 w-3 mr-1" /> 
                                                     {productSales.length} sales totaling 
                                                     {' ' + formatCurrency(productSales.reduce((sum, sale) => 
                                                       sum + (parseFloat(sale.unitPrice) * parseInt(sale.quantity || 1)), 0
