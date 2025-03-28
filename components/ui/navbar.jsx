@@ -3,6 +3,7 @@ import React from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { auth } from '@/lib/firebase'; // Adjust the import based on your project structure
+import Cookies from 'js-cookie';
 
 const Navbar = () => {
   const router = useRouter();
@@ -11,6 +12,10 @@ const Navbar = () => {
   const handleSignOut = async () => {
     try {
       await auth.signOut();
+      
+      // Clear the authentication cookie
+      Cookies.remove('__session');
+      
       router.push('/signin');
     } catch (error) {
       console.error('Error signing out:', error);

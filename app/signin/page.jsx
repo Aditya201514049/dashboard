@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect } from 'react';
@@ -6,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { auth } from '@/lib/firebase';
 import GoogleSignIn from '@/components/GoogleSignIn';
 import { createUserDocument } from '@/lib/firestore';
+import Cookies from 'js-cookie';
 
 const SignInPage = () => {
   const router = useRouter();
@@ -18,6 +18,14 @@ const SignInPage = () => {
         signInMethod: 'google',
         isNewUser
       });
+      
+      // Set a cookie for server-side auth checking (for middleware)
+      Cookies.set('__session', 'authenticated', { 
+        expires: 7, // 7 days
+        sameSite: 'strict',
+        secure: process.env.NODE_ENV === 'production'
+      });
+      
       router.push(isNewUser ? '/onboarding' : '/dashboard');
     } catch (error) {
       console.error("Sign-in success handling error:", error);
@@ -37,6 +45,16 @@ const SignInPage = () => {
           await createUserDocument(user, {
             lastLogin: new Date()
           });
+          
+          // Set a cookie for server-side auth checking (for middleware)
+          Cookies.set('__session', 'authenticated', { 
+            expires: 7, // 7 days
+            sameSite: 'strict',
+            secure: process.env.NODE_ENV === 'production'
+          });
+          
+          // Redirect to dashboard if already signed in
+          router.push('/dashboard');
         } catch (error) {
           console.error("Auth state change error:", error);
         }

@@ -1,5 +1,5 @@
-
 import NavbarWrapper from "@/components/ui/NavbarWrapper";
+import { AuthProvider } from "@/lib/AuthContext";
 import "./globals.css";
 
 export const metadata = {
@@ -9,13 +9,13 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-   
-      <html lang="en">
-        <body>
+    <html lang="en">
+      <body>
+        <AuthProvider>
           <NavbarWrapper />
           {children}
-        </body>
-      </html>
-    
+        </AuthProvider>
+      </body>
+    </html>
   );
 }
