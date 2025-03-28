@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { auth } from '@/lib/firebase';
 import { useAuth } from '@/lib/AuthContext';
 import Cookies from 'js-cookie';
-import { Menu, User, LogOut, BarChart2, ShoppingBag, Settings } from 'lucide-react';
+import { Menu, User, LogOut, BarChart2, ShoppingBag } from 'lucide-react';
 
 const Navbar = () => {
   const router = useRouter();
@@ -48,10 +48,6 @@ const Navbar = () => {
             <Link href="/admin" className={`text-xs transition-colors px-2 py-1 ${isActive("/admin")} flex items-center`}>
               <ShoppingBag size={12} className="mr-1" />
               <span>Admin</span>
-            </Link>
-            <Link href="/admin/dashboard" className={`text-xs transition-colors px-2 py-1 ${isActive("/admin/dashboard")} flex items-center`}>
-              <Settings size={12} className="mr-1" />
-              <span>Analytics</span>
             </Link>
           </div>
           
@@ -106,10 +102,6 @@ const Navbar = () => {
             <Link href="/admin" className={`text-xs py-1 px-3 ${isActive("/admin")} flex items-center justify-center`} onClick={() => setIsMenuOpen(false)}>
               <ShoppingBag size={12} className="mr-1" />
               <span>Admin</span>
-            </Link>
-            <Link href="/admin/dashboard" className={`text-xs py-1 px-3 ${isActive("/admin/dashboard")} flex items-center justify-center`} onClick={() => setIsMenuOpen(false)}>
-              <Settings size={12} className="mr-1" />
-              <span>Analytics</span>
             </Link>
           </div>
         </div>

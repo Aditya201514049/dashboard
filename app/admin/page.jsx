@@ -8,7 +8,11 @@ import {
   addSale, 
   getUserShops, 
   getShopProducts, 
-  getProduct
+  getProduct,
+  deleteShop,
+  deleteProduct,
+  deleteSale,
+  getProductSales
 } from "@/lib/firestore";
 
 // Icons
@@ -21,7 +25,8 @@ import {
   FiChevronRight, 
   FiTrash2,
   FiEdit,
-  FiSearch
+  FiSearch,
+  FiBarChart2
 } from "react-icons/fi";
 
 const Admin = () => {
@@ -44,6 +49,14 @@ const Admin = () => {
   // Modal state
   const [modalOpen, setModalOpen] = useState(false);
   const [modalType, setModalType] = useState("");
+  
+  // Confirmation modal state
+  const [confirmModalOpen, setConfirmModalOpen] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState(null);
+  const [deleteType, setDeleteType] = useState("");
+  
+  const [salesData, setSalesData] = useState([]);
+  const [loadingSales, setLoadingSales] = useState(false);
   
   // Get current date in YYYY-MM-DD format for the date input
   function getCurrentDate() {
@@ -119,6 +132,30 @@ const Admin = () => {
     
     loadProducts();
   }, [selectedShop]);
+  
+  // Load product sales when a product is selected
+  useEffect(() => {
+    async function loadSales() {
+      if (selectedProduct) {
+        try {
+          console.log("Loading sales for product:", selectedProduct.id);
+          setLoadingSales(true);
+          setError(null); // Clear any previous errors
+          
+          const productSales = await getProductSales(selectedProduct.id);
+          console.log("Loaded sales successfully:", productSales);
+          setSalesData(productSales);
+          setLoadingSales(false);
+        } catch (error) {
+          console.error("Error loading sales:", error);
+          setError(`Failed to load sales: ${error.message || 'Unknown error'}`);
+          setLoadingSales(false);
+        }
+      }
+    }
+    
+    loadSales();
+  }, [selectedProduct]);
   
   // Handle opening a modal
   const openModal = (type) => {
@@ -331,6 +368,92 @@ const Admin = () => {
     }
   };
   
+  // Handle shop deletion
+  const handleDeleteShop = async (shop) => {
+    if (!user) {
+      setError("You must be signed in to delete a shop");
+      return;
+    }
+    
+    setDeleteType("shop");
+    setItemToDelete(shop);
+    setConfirmModalOpen(true);
+  };
+  
+  // Handle product deletion
+  const handleDeleteProduct = async (product) => {
+    if (!user) {
+      setError("You must be signed in to delete a product");
+      return;
+    }
+    
+    setDeleteType("product");
+    setItemToDelete(product);
+    setConfirmModalOpen(true);
+  };
+  
+  // Handle sale deletion
+  const handleDeleteSale = async (sale) => {
+    if (!user) {
+      setError("You must be signed in to delete a sale");
+      return;
+    }
+    
+    setDeleteType("sale");
+    setItemToDelete(sale);
+    setConfirmModalOpen(true);
+  };
+  
+  // Handle confirmation of deletion
+  const confirmDelete = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      if (deleteType === "shop") {
+        await deleteShop(itemToDelete.id, user.uid);
+        setShops(shops.filter(shop => shop.id !== itemToDelete.id));
+        if (selectedShop && selectedShop.id === itemToDelete.id) {
+          setSelectedShop(null);
+          setActiveStep("shops");
+        }
+      } else if (deleteType === "product") {
+        await deleteProduct(itemToDelete.id, user.uid);
+        setProducts(products.filter(product => product.id !== itemToDelete.id));
+        if (selectedProduct && selectedProduct.id === itemToDelete.id) {
+          setSelectedProduct(null);
+          setActiveStep("products");
+        }
+      } else if (deleteType === "sale") {
+        await deleteSale(itemToDelete.id, user.uid);
+        // Refresh product data to reflect updated stock
+        if (selectedShop) {
+          const shopProducts = await getShopProducts(selectedShop.id);
+          setProducts(shopProducts);
+        }
+      }
+      
+      setConfirmModalOpen(false);
+      setItemToDelete(null);
+      setLoading(false);
+    } catch (error) {
+      console.error(`Error deleting ${deleteType}:`, error);
+      setError(`Failed to delete ${deleteType}: ${error.message || 'Unknown error'}`);
+      setLoading(false);
+    }
+  };
+  
+  // Format date for display
+  const formatDate = (timestamp) => {
+    if (!timestamp) return "N/A";
+    
+    const date = timestamp.toDate ? 
+      new Date(timestamp.toDate()) : 
+      new Date(timestamp);
+      
+    return date.toLocaleDateString() + " " + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+  
   // If authentication is loading, show loading spinner
   if (authLoading) {
     return (
@@ -366,32 +489,42 @@ const Admin = () => {
             <p className="text-gray-600 mt-1">Manage your shops, products, and sales</p>
           </div>
           
-          {/* Breadcrumb Navigation */}
-          <div className="flex items-center space-x-2 mt-4 md:mt-0 text-sm">
-            <span 
-              className={`cursor-pointer ${activeStep === "shops" ? "text-blue-600 font-medium" : "text-gray-500 hover:text-gray-700"}`}
-              onClick={() => setActiveStep("shops")}
+          <div className="flex items-center mt-4 md:mt-0">
+            <a 
+              href="/admin/dashboard" 
+              className="flex items-center text-sm text-blue-600 hover:text-blue-800 mr-4"
             >
-              Shops
-            </span>
-            <FiChevronRight className="text-gray-400" />
+              <FiBarChart2 className="mr-1" />
+              <span>View Analytics</span>
+            </a>
             
-            <span 
-              className={`cursor-pointer ${activeStep === "products" ? "text-blue-600 font-medium" : "text-gray-500 hover:text-gray-700"} 
-                ${!selectedShop ? "opacity-50 cursor-not-allowed" : ""}`}
-              onClick={() => selectedShop && setActiveStep("products")}
-            >
-              Products
-            </span>
-            <FiChevronRight className="text-gray-400" />
-            
-            <span 
-              className={`cursor-pointer ${activeStep === "sales" ? "text-blue-600 font-medium" : "text-gray-500 hover:text-gray-700"}
-                ${!selectedProduct ? "opacity-50 cursor-not-allowed" : ""}`}
-              onClick={() => selectedProduct && setActiveStep("sales")}
-            >
-              Sales
-            </span>
+            {/* Breadcrumb Navigation */}
+            <div className="flex items-center space-x-2 text-sm">
+              <span 
+                className={`cursor-pointer ${activeStep === "shops" ? "text-blue-600 font-medium" : "text-gray-500 hover:text-gray-700"}`}
+                onClick={() => setActiveStep("shops")}
+              >
+                Shops
+              </span>
+              <FiChevronRight className="text-gray-400" />
+              
+              <span 
+                className={`cursor-pointer ${activeStep === "products" ? "text-blue-600 font-medium" : "text-gray-500 hover:text-gray-700"} 
+                  ${!selectedShop ? "opacity-50 cursor-not-allowed" : ""}`}
+                onClick={() => selectedShop && setActiveStep("products")}
+              >
+                Products
+              </span>
+              <FiChevronRight className="text-gray-400" />
+              
+              <span 
+                className={`cursor-pointer ${activeStep === "sales" ? "text-blue-600 font-medium" : "text-gray-500 hover:text-gray-700"}
+                  ${!selectedProduct ? "opacity-50 cursor-not-allowed" : ""}`}
+                onClick={() => selectedProduct && setActiveStep("sales")}
+              >
+                Sales
+              </span>
+            </div>
           </div>
         </div>
         
@@ -493,28 +626,41 @@ const Admin = () => {
                       {shops.map((shop) => (
                         <div
                           key={shop.id}
-                          onClick={() => selectShop(shop)}
-                          className="border border-gray-200 rounded-lg p-4 hover:shadow-md cursor-pointer transition-shadow"
+                          className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
                         >
                           <div className="flex justify-between items-start">
-                            <h3 className="text-lg font-medium text-gray-900">{shop.name}</h3>
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                              Shop
-                            </span>
+                            <h3 
+                              className="text-lg font-medium text-gray-900 cursor-pointer hover:text-blue-600"
+                              onClick={() => selectShop(shop)}
+                            >
+                              {shop.name}
+                            </h3>
+                            <div className="flex items-center">
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 mr-2">
+                                Shop
+                              </span>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteShop(shop);
+                                }}
+                                className="text-red-500 hover:text-red-700 transition-colors"
+                                aria-label={`Delete ${shop.name}`}
+                              >
+                                <FiTrash2 className="h-4 w-4" />
+                              </button>
+                            </div>
                           </div>
-                          <p className="mt-1 text-sm text-gray-500">{shop.location}</p>
+                          <p className="mt-1 text-sm text-gray-500 cursor-pointer" onClick={() => selectShop(shop)}>{shop.location}</p>
                           {shop.description && (
-                            <p className="mt-2 text-sm text-gray-700 line-clamp-2">{shop.description}</p>
+                            <p className="mt-2 text-sm text-gray-700 line-clamp-2 cursor-pointer" onClick={() => selectShop(shop)}>{shop.description}</p>
                           )}
                           <div className="mt-4 flex justify-between items-center">
                             <span className="text-xs text-gray-500">
                               Created: {shop.createdAt?.toDate ? new Date(shop.createdAt.toDate()).toLocaleDateString() : new Date(shop.createdAt).toLocaleDateString()}
                             </span>
                             <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                selectShop(shop);
-                              }}
+                              onClick={() => selectShop(shop)}
                               className="text-blue-600 hover:text-blue-800 text-sm font-medium"
                             >
                               Manage Products →
@@ -575,11 +721,15 @@ const Admin = () => {
                           {products.map((product) => (
                             <tr 
                               key={product.id} 
-                              className="hover:bg-gray-50 cursor-pointer"
-                              onClick={() => selectProduct(product)}
+                              className="hover:bg-gray-50"
                             >
                               <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm font-medium text-gray-900">{product.name}</div>
+                                <div 
+                                  className="text-sm font-medium text-gray-900 cursor-pointer hover:text-blue-600"
+                                  onClick={() => selectProduct(product)}
+                                >
+                                  {product.name}
+                                </div>
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap">
                                 <div className="text-sm text-gray-900">${product.price}</div>
@@ -592,13 +742,20 @@ const Admin = () => {
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                 <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    selectProduct(product);
-                                  }}
+                                  onClick={() => selectProduct(product)}
                                   className="text-blue-600 hover:text-blue-800 mr-3"
                                 >
                                   Record Sale
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteProduct(product);
+                                  }}
+                                  className="text-red-500 hover:text-red-700"
+                                  aria-label={`Delete ${product.name}`}
+                                >
+                                  <FiTrash2 className="h-4 w-4 inline" />
                                 </button>
                               </td>
                             </tr>
@@ -614,7 +771,7 @@ const Admin = () => {
               {activeStep === "sales" && selectedProduct && (
                 <div>
                   <h2 className="text-xl font-semibold mb-4 flex items-center">
-                    <FiDollarSign className="mr-2 text-blue-500" /> Record Sale for {selectedProduct.name}
+                    <FiDollarSign className="mr-2 text-blue-500" /> Sales for {selectedProduct.name}
                   </h2>
                   
                   <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6">
@@ -630,30 +787,100 @@ const Admin = () => {
                     </div>
                   </div>
                   
-                  <div className="border border-gray-200 rounded-lg p-4">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div className="bg-gray-50 p-4 rounded">
-                        <h3 className="text-sm font-medium text-gray-500 mb-1">Product</h3>
-                        <p className="text-lg font-medium text-gray-900">{selectedProduct.name}</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Product Information Card */}
+                    <div className="border border-gray-200 rounded-lg p-4">
+                      <h3 className="text-lg font-medium mb-3">Product Details</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="bg-gray-50 p-4 rounded">
+                          <h4 className="text-sm font-medium text-gray-500 mb-1">Product</h4>
+                          <p className="text-base font-medium text-gray-900">{selectedProduct.name}</p>
+                        </div>
+                        <div className="bg-gray-50 p-4 rounded">
+                          <h4 className="text-sm font-medium text-gray-500 mb-1">Price</h4>
+                          <p className="text-base font-medium text-gray-900">${selectedProduct.price}</p>
+                        </div>
+                        <div className="bg-gray-50 p-4 rounded">
+                          <h4 className="text-sm font-medium text-gray-500 mb-1">Current Stock</h4>
+                          <p className="text-base font-medium text-gray-900">{selectedProduct.stock || "N/A"}</p>
+                        </div>
                       </div>
-                      <div className="bg-gray-50 p-4 rounded">
-                        <h3 className="text-sm font-medium text-gray-500 mb-1">Price</h3>
-                        <p className="text-lg font-medium text-gray-900">${selectedProduct.price}</p>
-                      </div>
-                      <div className="bg-gray-50 p-4 rounded">
-                        <h3 className="text-sm font-medium text-gray-500 mb-1">Current Stock</h3>
-                        <p className="text-lg font-medium text-gray-900">{selectedProduct.stock || "N/A"}</p>
+                      
+                      <div className="mt-6 flex justify-center">
+                        <button
+                          onClick={() => openModal("sale")}
+                          className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+                        >
+                          <FiPlus className="-ml-1 mr-2 h-5 w-5" />
+                          Add Sale
+                        </button>
                       </div>
                     </div>
                     
-                    <div className="mt-6 flex justify-center">
-                      <button
-                        onClick={() => openModal("sale")}
-                        className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
-                      >
-                        <FiPlus className="-ml-1 mr-2 h-5 w-5" />
-                        Add Sale
-                      </button>
+                    {/* Sales History Card */}
+                    <div className="border border-gray-200 rounded-lg p-4">
+                      <h3 className="text-lg font-medium mb-3">Sales History</h3>
+                      
+                      {loadingSales ? (
+                        <div className="flex justify-center items-center h-40">
+                          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+                        </div>
+                      ) : salesData.length === 0 ? (
+                        <div className="text-center py-8 border-2 border-dashed border-gray-200 rounded-lg">
+                          <FiDollarSign className="mx-auto h-10 w-10 text-gray-400" />
+                          <h3 className="mt-2 text-sm font-medium text-gray-900">No sales yet</h3>
+                          <p className="mt-1 text-sm text-gray-500">Record your first sale with this product.</p>
+                        </div>
+                      ) : (
+                        <div className="overflow-auto max-h-96">
+                          <table className="min-w-full divide-y divide-gray-200">
+                            <thead className="bg-gray-50">
+                              <tr>
+                                <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                  Date
+                                </th>
+                                <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                  Qty
+                                </th>
+                                <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                  Total
+                                </th>
+                                <th scope="col" className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                  Actions
+                                </th>
+                              </tr>
+                            </thead>
+                            <tbody className="bg-white divide-y divide-gray-200">
+                              {salesData.map((sale) => (
+                                <tr key={sale.id} className="hover:bg-gray-50">
+                                  <td className="px-3 py-2 whitespace-nowrap">
+                                    <span className="text-xs text-gray-900">
+                                      {formatDate(sale.createdAt)}
+                                    </span>
+                                  </td>
+                                  <td className="px-3 py-2 whitespace-nowrap">
+                                    <span className="text-sm font-medium text-gray-900">{sale.quantity}</span>
+                                  </td>
+                                  <td className="px-3 py-2 whitespace-nowrap">
+                                    <span className="text-sm text-gray-900">
+                                      ${(parseFloat(sale.unitPrice) * parseInt(sale.quantity)).toFixed(2)}
+                                    </span>
+                                  </td>
+                                  <td className="px-3 py-2 whitespace-nowrap text-right">
+                                    <button
+                                      onClick={() => handleDeleteSale(sale)}
+                                      className="text-red-500 hover:text-red-700"
+                                      aria-label="Delete sale"
+                                    >
+                                      <FiTrash2 className="h-4 w-4 inline" />
+                                    </button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -662,6 +889,55 @@ const Admin = () => {
           )}
         </div>
       </div>
+      
+      {/* Confirmation Modal */}
+      {confirmModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg w-full max-w-md mx-auto">
+            <div className="p-6">
+              <h2 className="text-xl font-semibold mb-4 text-red-600">Confirm Deletion</h2>
+              <p className="mb-6">
+                Are you sure you want to delete this {deleteType}?
+                {deleteType === "shop" && " This will also delete all related products and sales."}
+                {deleteType === "product" && " This will also delete all related sales."}
+                This action cannot be undone.
+              </p>
+              
+              {itemToDelete && (
+                <div className="p-3 mb-4 bg-gray-50 rounded-md">
+                  <span className="font-medium">
+                    {deleteType === "shop" && itemToDelete.name}
+                    {deleteType === "product" && itemToDelete.name}
+                    {deleteType === "sale" && `Sale of ${itemToDelete.productName || 'product'}, Qty: ${itemToDelete.quantity}`}
+                  </span>
+                </div>
+              )}
+              
+              <div className="flex justify-end space-x-2 mt-6">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setConfirmModalOpen(false);
+                    setItemToDelete(null);
+                  }}
+                  className="px-4 py-2 text-sm border border-gray-300 rounded text-gray-700"
+                  disabled={loading}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmDelete}
+                  className="px-4 py-2 text-sm bg-red-600 text-white rounded hover:bg-red-700"
+                  disabled={loading}
+                >
+                  {loading ? 'Deleting...' : 'Delete'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       
       {/* Modal */}
       {modalOpen && (
