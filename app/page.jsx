@@ -33,7 +33,7 @@ export default function Home() {
             </div>
             <p>Access your personalized dashboard with real-time analytics.</p>
             <div className="flex justify-end mt-4">
-              <button className="btn btn-sm md:btn-md btn-outline border-secondary-content text-secondary-content hover:bg-white hover:text-secondary hover:border-white flex items-center">
+              <button className="btn btn-sm md:btn-md btn-outline border-secondary-content text-secondary-content hover:bg-white hover:text-black hover:border-white flex items-center">
                 View Dashboard
                 <ArrowRight className="ml-2 h-4 w-4" />
               </button>
@@ -47,7 +47,7 @@ export default function Home() {
             </div>
             <p>Manage your shops, products, and view sales data.</p>
             <div className="flex justify-end mt-4">
-              <button className="btn btn-sm md:btn-md btn-outline border-secondary-content text-secondary-content hover:bg-white hover:text-secondary hover:border-white flex items-center">
+              <button className="btn btn-sm md:btn-md btn-outline border-secondary-content text-secondary-content hover:bg-white hover:text-black hover:border-white flex items-center">
                 Go to Admin
                 <ArrowRight className="ml-2 h-4 w-4" />
               </button>
@@ -61,7 +61,7 @@ export default function Home() {
             </div>
             <p>View and manage your account settings and personal information.</p>
             <div className="flex justify-end mt-4">
-              <button className="btn btn-sm md:btn-md btn-outline border-accent-content text-accent-content hover:bg-white hover:text-accent hover:border-white flex items-center">
+              <button className="btn btn-sm md:btn-md btn-outline border-accent-content text-accent-content hover:bg-white hover:text-black hover:border-white flex items-center">
                 View Profile
                 <ArrowRight className="ml-2 h-4 w-4" />
               </button>
