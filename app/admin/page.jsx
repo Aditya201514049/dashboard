@@ -478,7 +478,7 @@ const Admin = () => {
       </div>
     );
   }
-  
+
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-8">
       {/* Header */}
@@ -551,10 +551,10 @@ const Admin = () => {
                   {selectedProduct.stock && (
                     <span className="ml-2 text-gray-500">Stock: {selectedProduct.stock}</span>
                   )}
-                </div>
-              </div>
+            </div>
+            </div>
             )}
-          </div>
+            </div>
           
           <div className="w-full md:w-auto flex">
             {activeStep !== "shops" && (
@@ -579,7 +579,7 @@ const Admin = () => {
             </button>
           </div>
         </div>
-        
+
         {/* Error Alert */}
         {error && (
           <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-6 rounded">
@@ -958,23 +958,23 @@ const Admin = () => {
                   <div className="mb-4">
                     <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
                       Shop Name *
-                    </label>
-                    <input
-                      type="text"
+              </label>
+              <input
+                type="text"
                       id="name"
                       name="name"
                       value={shopForm.name}
                       onChange={handleShopFormChange}
                       className="w-full p-2 border border-gray-300 rounded"
                       required
-                    />
-                  </div>
+              />
+            </div>
                   
                   <div className="mb-4">
                     <label htmlFor="location" className="block text-sm font-medium text-gray-700 mb-1">
                       Location *
-                    </label>
-                    <input
+              </label>
+              <input
                       type="text"
                       id="location"
                       name="location"
@@ -982,8 +982,8 @@ const Admin = () => {
                       onChange={handleShopFormChange}
                       className="w-full p-2 border border-gray-300 rounded"
                       required
-                    />
-                  </div>
+              />
+            </div>
                   
                   <div className="mb-4">
                     <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
@@ -1012,8 +1012,8 @@ const Admin = () => {
                       className="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
                     >
                       Add Shop
-                    </button>
-                  </div>
+            </button>
+          </div>
                 </form>
               )}
               
@@ -1033,14 +1033,14 @@ const Admin = () => {
                       className="w-full p-2 border border-gray-300 rounded"
                       required
                     />
-                  </div>
-                  
+        </div>
+
                   <div className="mb-4">
                     <label htmlFor="price" className="block text-sm font-medium text-gray-700 mb-1">
                       Price *
-                    </label>
-                    <input
-                      type="text"
+              </label>
+              <input
+                type="text"
                       id="price"
                       name="price"
                       value={productForm.price}
@@ -1048,23 +1048,23 @@ const Admin = () => {
                       className="w-full p-2 border border-gray-300 rounded"
                       placeholder="0.00"
                       required
-                    />
-                  </div>
+              />
+            </div>
                   
                   <div className="mb-4">
                     <label htmlFor="stock" className="block text-sm font-medium text-gray-700 mb-1">
                       Stock
-                    </label>
-                    <input
-                      type="number"
+              </label>
+              <input
+                type="number"
                       id="stock"
                       name="stock"
                       value={productForm.stock}
                       onChange={handleProductFormChange}
                       className="w-full p-2 border border-gray-300 rounded"
                       placeholder="0"
-                    />
-                  </div>
+              />
+            </div>
                   
                   <div className="mb-4">
                     <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
@@ -1118,9 +1118,9 @@ const Admin = () => {
                   <div className="mb-4">
                     <label htmlFor="quantity" className="block text-sm font-medium text-gray-700 mb-1">
                       Quantity *
-                    </label>
-                    <input
-                      type="number"
+              </label>
+              <input
+                type="number"
                       id="quantity"
                       name="quantity"
                       value={saleForm.quantity}
@@ -1130,17 +1130,17 @@ const Admin = () => {
                       min="1"
                       max={selectedProduct.stock || 9999}
                       required
-                    />
-                  </div>
+              />
+            </div>
                   
                   <div className="mb-4">
                     <label htmlFor="date" className="block text-sm font-medium text-gray-700 mb-1">
                       Date
-                    </label>
-                    <input
-                      type="date"
+              </label>
+              <input
+                type="date"
                       id="date"
-                      name="date"
+                name="date"
                       value={saleForm.date}
                       onChange={handleSaleFormChange}
                       className="w-full p-2 border border-gray-300 rounded"

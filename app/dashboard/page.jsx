@@ -531,7 +531,7 @@ export default function Dashboard() {
                     />
                   </AreaChart>
                 </ResponsiveContainer>
-              </div>
+      </div>
             </CardContent>
           </Card>
           
@@ -688,7 +688,7 @@ export default function Dashboard() {
                     <span>{category.name}</span>
                   </div>
                 ))}
-              </div>
+      </div>
             </CardContent>
           </Card>
           
@@ -743,7 +743,7 @@ export default function Dashboard() {
           </Card>
         </div>
       </div>
-      
+
       {/* Quick Actions Card */}
       <Card className="shadow-sm mt-6">
         <CardHeader>
