@@ -76,6 +76,39 @@ const TakaIcon = (props) => (
   </svg>
 );
 
+// Helper function to format dates as relative time
+const getRelativeTime = (date) => {
+  const now = new Date();
+  const diffInSeconds = Math.floor((now - date) / 1000);
+  
+  if (diffInSeconds < 60) {
+    return 'just now';
+  }
+  
+  const diffInMinutes = Math.floor(diffInSeconds / 60);
+  if (diffInMinutes < 60) {
+    return `${diffInMinutes} ${diffInMinutes === 1 ? 'minute' : 'minutes'} ago`;
+  }
+  
+  const diffInHours = Math.floor(diffInMinutes / 60);
+  if (diffInHours < 24) {
+    return `${diffInHours} ${diffInHours === 1 ? 'hour' : 'hours'} ago`;
+  }
+  
+  const diffInDays = Math.floor(diffInHours / 24);
+  if (diffInDays < 30) {
+    return `${diffInDays} ${diffInDays === 1 ? 'day' : 'days'} ago`;
+  }
+  
+  const diffInMonths = Math.floor(diffInDays / 30);
+  if (diffInMonths < 12) {
+    return `${diffInMonths} ${diffInMonths === 1 ? 'month' : 'months'} ago`;
+  }
+  
+  const diffInYears = Math.floor(diffInMonths / 12);
+  return `${diffInYears} ${diffInYears === 1 ? 'year' : 'years'} ago`;
+};
+
 export default function Dashboard() {
   const { user, loading: authLoading } = useAuth();
   const [date, setDate] = useState(new Date());
@@ -272,6 +305,40 @@ export default function Dashboard() {
         
         if (recentSales.length > 0) {
           setTransactions(recentSales);
+        }
+
+        // Fetch recent activities
+        try {
+          const activitiesRef = collection(db, "activities");
+          const activitiesQuery = query(
+            activitiesRef, 
+            orderBy("createdAt", "desc"), 
+            limit(5)
+          );
+          
+          const activitiesSnapshot = await getDocs(activitiesQuery);
+          if (!activitiesSnapshot.empty) {
+            const recentActivities = activitiesSnapshot.docs.map(doc => {
+              const data = doc.data();
+              const activityDate = data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt);
+              
+              // Calculate relative time (e.g., "2 hours ago")
+              const timeAgo = getRelativeTime(activityDate);
+              
+              return {
+                id: doc.id,
+                type: data.type || 'update', // Default to 'update' if no type
+                text: data.text || 'Activity recorded',
+                time: timeAgo,
+                userName: data.userName || 'A user',
+                userId: data.userId || ''
+              };
+            });
+            
+            setActivities(recentActivities);
+          }
+        } catch (activityError) {
+          console.error("Error loading activities:", activityError);
         }
 
         setLoading(false);
@@ -732,19 +799,36 @@ export default function Dashboard() {
               <CardDescription>Latest system events</CardDescription>
             </CardHeader>
             <CardContent>
-              <ul className="space-y-3">
-                {activities.map(activity => (
-                  <li key={activity.id} className="flex items-start gap-2">
-                    <div className={`px-2 py-1 rounded-full text-xs font-medium ${getActivityBadge(activity.type)}`}>
-                      {activity.type.charAt(0).toUpperCase() + activity.type.slice(1)}
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-sm">{activity.text}</span>
-                      <span className="text-xs text-muted-foreground">{activity.time}</span>
-                    </div>
-                  </li>
-                ))}
-              </ul>
+              {loading ? (
+                <div className="flex justify-center items-center h-40">
+                  <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+                </div>
+              ) : activities.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <Activity className="h-10 w-10 mx-auto text-gray-300 mb-3" />
+                  <p className="text-sm font-medium">No recent activities</p>
+                  <p className="text-xs mt-1">Activities will appear here as users interact with the platform</p>
+                </div>
+              ) : (
+                <ul className="space-y-3">
+                  {activities.map(activity => (
+                    <li key={activity.id} className="flex items-start gap-2">
+                      <div className={`px-2 py-1 rounded-full text-xs font-medium ${getActivityBadge(activity.type)}`}>
+                        {activity.type.charAt(0).toUpperCase() + activity.type.slice(1)}
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-sm">
+                          {activity.userName && activity.userName !== 'A user' 
+                            ? <span className="font-medium">{activity.userName}</span> 
+                            : ''}
+                          {' '}{activity.text}
+                        </span>
+                        <span className="text-xs text-muted-foreground">{activity.time}</span>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </CardContent>
           </Card>
         </div>
