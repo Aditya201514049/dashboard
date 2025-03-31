@@ -129,9 +129,14 @@ const Dashboard = () => {
           
           // Load sales for the selected shop
           const shopSales = await getShopSales(selectedShop.id);
+
+          // Calculate date for previous period (same length as current period)
+          const periodLength = dateRange.to.getTime() - dateRange.from.getTime();
+          const previousPeriodEnd = new Date(dateRange.from.getTime() - 1); // Day before current period starts
+          const previousPeriodStart = new Date(previousPeriodEnd.getTime() - periodLength);
           
-          // Filter sales by date range if needed
-          const filteredSales = shopSales.filter(sale => {
+          // Filter sales for current period
+          const currentPeriodSales = shopSales.filter(sale => {
             if (!dateRange.from || !dateRange.to) return true;
             
             const saleDate = sale.createdAt?.toDate ? 
@@ -141,17 +146,40 @@ const Dashboard = () => {
             return saleDate >= dateRange.from && saleDate <= dateRange.to;
           });
           
-          setSalesData(filteredSales);
+          // Filter sales for previous period
+          const previousPeriodSales = shopSales.filter(sale => {
+            const saleDate = sale.createdAt?.toDate ? 
+              sale.createdAt.toDate() : 
+              new Date(sale.createdAt);
+              
+            return saleDate >= previousPeriodStart && saleDate <= previousPeriodEnd;
+          });
+          
+          setSalesData(currentPeriodSales);
           
           // Calculate total revenue and sales
-          const totalRevenue = filteredSales.reduce((sum, sale) => {
+          const currentRevenue = currentPeriodSales.reduce((sum, sale) => {
             return sum + (parseFloat(sale.unitPrice) * parseInt(sale.quantity || 1));
           }, 0);
           
+          const previousRevenue = previousPeriodSales.reduce((sum, sale) => {
+            return sum + (parseFloat(sale.unitPrice) * parseInt(sale.quantity || 1));
+          }, 0);
+          
+          // Calculate growth rate
+          let growthRate = 0;
+          if (previousRevenue > 0) {
+            growthRate = ((currentRevenue - previousRevenue) / previousRevenue) * 100;
+          } else if (currentRevenue > 0) {
+            growthRate = 100; // If previous is 0 and current is positive, that's 100% growth
+          }
+          
           setUserStats(prev => ({ 
             ...prev, 
-            totalSales: filteredSales.length,
-            totalRevenue: totalRevenue
+            totalSales: currentPeriodSales.length,
+            totalRevenue: currentRevenue,
+            salesGrowth: growthRate,
+            previousPeriodSales: previousPeriodSales.length
           }));
           
           setLoading(false);
@@ -530,13 +558,24 @@ const Dashboard = () => {
                           </div>
                           <div>
                             <h3 className="font-medium">Sales Growth</h3>
-                            <p className="text-sm text-gray-500">Current period</p>
+                            <p className="text-sm text-gray-500">vs previous period</p>
                           </div>
                         </div>
                         <div className="text-right">
                           <p className="text-xl font-semibold flex items-center">
-                            <span className="text-green-500 mr-1">+15.2%</span>
-                            <ArrowUpRight className="h-4 w-4 text-green-500" />
+                            {userStats.salesGrowth > 0 ? (
+                              <>
+                                <span className="text-green-500 mr-1">+{userStats.salesGrowth.toFixed(1)}%</span>
+                                <ArrowUpRight className="h-4 w-4 text-green-500" />
+                              </>
+                            ) : userStats.salesGrowth < 0 ? (
+                              <>
+                                <span className="text-red-500 mr-1">{userStats.salesGrowth.toFixed(1)}%</span>
+                                <ArrowDownRight className="h-4 w-4 text-red-500" />
+                              </>
+                            ) : (
+                              <span className="text-gray-500 mr-1">0%</span>
+                            )}
                           </p>
                         </div>
                       </div>
