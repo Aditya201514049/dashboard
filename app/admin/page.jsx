@@ -547,14 +547,14 @@ const Admin = () => {
                 <div className="flex items-center mt-1">
                   <span className="text-gray-500 mr-2">Product:</span>
                   <span className="font-medium text-gray-900">{selectedProduct.name}</span>
-                  <span className="ml-2 text-gray-500">(${selectedProduct.price})</span>
+                  <span className="ml-2 text-gray-500">৳{selectedProduct.price}</span>
                   {selectedProduct.stock && (
                     <span className="ml-2 text-gray-500">Stock: {selectedProduct.stock}</span>
                   )}
-            </div>
-            </div>
+                </div>
+              </div>
             )}
-            </div>
+          </div>
           
           <div className="w-full md:w-auto flex">
             {activeStep !== "shops" && (
@@ -732,7 +732,7 @@ const Admin = () => {
                                 </div>
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm text-gray-900">${product.price}</div>
+                                <div className="text-sm text-gray-900">৳{product.price}</div>
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap">
                                 <div className="text-sm text-gray-900">{product.stock || "N/A"}</div>
@@ -798,7 +798,7 @@ const Admin = () => {
                         </div>
                         <div className="bg-gray-50 p-4 rounded">
                           <h4 className="text-sm font-medium text-gray-500 mb-1">Price</h4>
-                          <p className="text-base font-medium text-gray-900">${selectedProduct.price}</p>
+                          <p className="text-base font-medium text-gray-900">৳{selectedProduct.price}</p>
                         </div>
                         <div className="bg-gray-50 p-4 rounded">
                           <h4 className="text-sm font-medium text-gray-500 mb-1">Current Stock</h4>
@@ -863,7 +863,7 @@ const Admin = () => {
                                   </td>
                                   <td className="px-3 py-2 whitespace-nowrap">
                                     <span className="text-sm text-gray-900">
-                                      ${(parseFloat(sale.unitPrice) * parseInt(sale.quantity)).toFixed(2)}
+                                      ৳{(parseFloat(sale.unitPrice) * parseInt(sale.quantity)).toFixed(2)}
                                     </span>
                                   </td>
                                   <td className="px-3 py-2 whitespace-nowrap text-right">
@@ -958,23 +958,23 @@ const Admin = () => {
                   <div className="mb-4">
                     <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
                       Shop Name *
-              </label>
-              <input
-                type="text"
+                    </label>
+                    <input
+                      type="text"
                       id="name"
                       name="name"
                       value={shopForm.name}
                       onChange={handleShopFormChange}
                       className="w-full p-2 border border-gray-300 rounded"
                       required
-              />
-            </div>
+                    />
+                  </div>
                   
                   <div className="mb-4">
                     <label htmlFor="location" className="block text-sm font-medium text-gray-700 mb-1">
                       Location *
-              </label>
-              <input
+                    </label>
+                    <input
                       type="text"
                       id="location"
                       name="location"
@@ -982,8 +982,8 @@ const Admin = () => {
                       onChange={handleShopFormChange}
                       className="w-full p-2 border border-gray-300 rounded"
                       required
-              />
-            </div>
+                    />
+                  </div>
                   
                   <div className="mb-4">
                     <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
@@ -1012,8 +1012,8 @@ const Admin = () => {
                       className="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
                     >
                       Add Shop
-            </button>
-          </div>
+                    </button>
+                  </div>
                 </form>
               )}
               
@@ -1033,14 +1033,14 @@ const Admin = () => {
                       className="w-full p-2 border border-gray-300 rounded"
                       required
                     />
-        </div>
+                  </div>
 
                   <div className="mb-4">
                     <label htmlFor="price" className="block text-sm font-medium text-gray-700 mb-1">
                       Price *
-              </label>
-              <input
-                type="text"
+                    </label>
+                    <input
+                      type="text"
                       id="price"
                       name="price"
                       value={productForm.price}
@@ -1048,23 +1048,23 @@ const Admin = () => {
                       className="w-full p-2 border border-gray-300 rounded"
                       placeholder="0.00"
                       required
-              />
-            </div>
+                    />
+                  </div>
                   
                   <div className="mb-4">
                     <label htmlFor="stock" className="block text-sm font-medium text-gray-700 mb-1">
                       Stock
-              </label>
-              <input
-                type="number"
+                    </label>
+                    <input
+                      type="number"
                       id="stock"
                       name="stock"
                       value={productForm.stock}
                       onChange={handleProductFormChange}
                       className="w-full p-2 border border-gray-300 rounded"
                       placeholder="0"
-              />
-            </div>
+                    />
+                  </div>
                   
                   <div className="mb-4">
                     <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
@@ -1105,7 +1105,7 @@ const Admin = () => {
                     <div className="flex items-center text-sm text-gray-500 mb-4">
                       <span className="font-medium text-gray-700 mr-1">Product:</span> {selectedProduct.name}
                       <span className="mx-2">|</span>
-                      <span className="font-medium text-gray-700 mr-1">Price:</span> ${selectedProduct.price}
+                      <span className="font-medium text-gray-700 mr-1">Price:</span> ৳{selectedProduct.price}
                       {selectedProduct.stock && (
                         <>
                           <span className="mx-2">|</span>
@@ -1118,9 +1118,9 @@ const Admin = () => {
                   <div className="mb-4">
                     <label htmlFor="quantity" className="block text-sm font-medium text-gray-700 mb-1">
                       Quantity *
-              </label>
-              <input
-                type="number"
+                    </label>
+                    <input
+                      type="number"
                       id="quantity"
                       name="quantity"
                       value={saleForm.quantity}
@@ -1130,17 +1130,17 @@ const Admin = () => {
                       min="1"
                       max={selectedProduct.stock || 9999}
                       required
-              />
-            </div>
+                    />
+                  </div>
                   
                   <div className="mb-4">
                     <label htmlFor="date" className="block text-sm font-medium text-gray-700 mb-1">
                       Date
-              </label>
-              <input
-                type="date"
+                    </label>
+                    <input
+                      type="date"
                       id="date"
-                name="date"
+                      name="date"
                       value={saleForm.date}
                       onChange={handleSaleFormChange}
                       className="w-full p-2 border border-gray-300 rounded"
@@ -1151,7 +1151,7 @@ const Admin = () => {
                     <div className="flex justify-between items-center text-sm">
                       <span className="text-gray-700">Total Sale Value:</span>
                       <span className="font-medium text-gray-900">
-                        ${Number(saleForm.quantity || 0) * Number(selectedProduct.price || 0)}
+                        ৳{Number(saleForm.quantity || 0) * Number(selectedProduct.price || 0)}
                       </span>
                     </div>
                   </div>

@@ -168,11 +168,11 @@ const Dashboard = () => {
   
   // Format currency with Taka symbol
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('bn-BD', {
+    return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'BDT',
       currencyDisplay: 'narrowSymbol'
-    }).format(amount);
+    }).format(amount).replace('BDT', '৳');
   };
   
   // Format date
@@ -775,7 +775,7 @@ const Dashboard = () => {
                                                 <Package className="h-4 w-4" />
                                               </div>
                                               <span className="font-medium">{product.name}</span>
-                                              <span className="ml-2 text-sm text-gray-500">${product.price}</span>
+                                              <span className="ml-2 text-sm text-gray-500">৳{product.price}</span>
                                               {product.stock && (
                                                 <span className="ml-2 text-xs bg-gray-100 px-2 py-1 rounded">
                                                   Stock: {product.stock}

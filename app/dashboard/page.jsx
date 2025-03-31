@@ -346,11 +346,11 @@ export default function Dashboard() {
 
   // Format currency
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('bn-BD', {
+    return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'BDT',
       currencyDisplay: 'narrowSymbol'
-    }).format(amount);
+    }).format(amount).replace('BDT', '৳');
   };
 
   // Get badge color based on status
@@ -517,10 +517,10 @@ export default function Dashboard() {
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="name" />
                     <YAxis 
-                      tickFormatter={(value) => `৳${value}`}
+                      tickFormatter={(value) => `৳${value.toLocaleString('en-US')}`}
                     />
                     <Tooltip 
-                      formatter={(value) => [`৳${value}`, 'Revenue']}
+                      formatter={(value) => [`৳${value.toLocaleString('en-US')}`, 'Revenue']}
                     />
                     <Area 
                       type="monotone" 
@@ -531,7 +531,7 @@ export default function Dashboard() {
                     />
                   </AreaChart>
                 </ResponsiveContainer>
-      </div>
+              </div>
             </CardContent>
           </Card>
           
@@ -688,7 +688,7 @@ export default function Dashboard() {
                     <span>{category.name}</span>
                   </div>
                 ))}
-      </div>
+              </div>
             </CardContent>
           </Card>
           
