@@ -183,8 +183,8 @@ export default function Dashboard() {
         const salesQuerySnapshot = await getDocs(salesQuery);
         salesQuerySnapshot.forEach((doc) => {
           const saleData = doc.data();
-          if (saleData.amount) {
-            totalRevenue += saleData.amount;
+          if (saleData.unitPrice && saleData.quantity) {
+            totalRevenue += parseFloat(saleData.unitPrice) * parseInt(saleData.quantity || 1);
           }
         });
 
@@ -196,11 +196,12 @@ export default function Dashboard() {
         // Calculate revenue by month
         salesQuerySnapshot.forEach((doc) => {
           const saleData = doc.data();
-          if (saleData.amount && saleData.date && saleData.date instanceof Timestamp) {
-            const saleDate = saleData.date.toDate();
+          if (saleData.unitPrice && saleData.quantity && saleData.createdAt) {
+            const saleDate = saleData.createdAt.toDate ? saleData.createdAt.toDate() : new Date(saleData.createdAt);
             if (saleDate.getFullYear() === currentYear) {
               const month = saleDate.getMonth();
-              monthlyRevenue[month] += saleData.amount;
+              const saleAmount = parseFloat(saleData.unitPrice) * parseInt(saleData.quantity || 1);
+              monthlyRevenue[month] += saleAmount;
             }
           }
         });
@@ -233,16 +234,21 @@ export default function Dashboard() {
         }));
 
         // Get recent transactions
-        const recentSalesQuery = query(salesRef, orderBy("date", "desc"), limit(5));
+        const recentSalesQuery = query(salesRef, orderBy("createdAt", "desc"), limit(5));
         const recentSalesSnapshot = await getDocs(recentSalesQuery);
         const recentSales = recentSalesSnapshot.docs.map(doc => {
           const data = doc.data();
+          const saleDate = data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt);
+          const amount = data.unitPrice && data.quantity 
+            ? parseFloat(data.unitPrice) * parseInt(data.quantity || 1)
+            : 0;
+          
           return {
             id: doc.id,
-            date: data.date instanceof Timestamp ? data.date.toDate().toLocaleDateString() : 'Unknown',
-            description: data.description || 'Sale',
-            amount: data.amount || 0,
-            status: data.status || 'completed'
+            date: saleDate.toLocaleDateString(),
+            description: data.productName ? `Sale of ${data.productName}` : 'Sale',
+            amount: amount,
+            status: 'completed'
           };
         });
 
@@ -313,8 +319,8 @@ export default function Dashboard() {
               const salesQuerySnapshot = await getDocs(salesQuery);
               salesQuerySnapshot.forEach((doc) => {
                 const saleData = doc.data();
-                if (saleData.amount) {
-                  userRevenue += saleData.amount;
+                if (saleData.unitPrice && saleData.quantity) {
+                  userRevenue += parseFloat(saleData.unitPrice) * parseInt(saleData.quantity || 1);
                 }
               });
             }
