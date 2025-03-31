@@ -19,8 +19,10 @@ import {
   ShoppingBag,
   BarChart,
   PieChart,
-  Info
+  Info,
+  X
 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 // Recharts components for data visualization
 import {
@@ -677,9 +679,6 @@ export default function Dashboard() {
                     ))}
                   </TableBody>
                 </Table>
-              </div>
-              <div className="flex justify-center mt-4">
-                <Button variant="outline" size="sm">View All Transactions</Button>
               </div>
             </CardContent>
           </Card>
