@@ -368,6 +368,82 @@ export default function Dashboard() {
       }
     }
 
+    // Load user-specific data
+    async function loadUserData() {
+      try {
+        if (!isMounted || !user || !user.uid) return;
+        console.log("Loading user-specific data...");
+        
+        // User's shops
+        const userShopsRef = collection(db, "shops");
+        const userShopsQuery = query(userShopsRef, where("userId", "==", user.uid));
+        const userShopsSnapshot = await getCountFromServer(userShopsQuery);
+        const userShopsCount = userShopsSnapshot.data().count;
+        
+        // User's products
+        const userProductsRef = collection(db, "products");
+        const userProductsQuery = query(userProductsRef, where("userId", "==", user.uid));
+        const userProductsSnapshot = await getCountFromServer(userProductsQuery);
+        const userProductsCount = userProductsSnapshot.data().count;
+        
+        // User's sales - check both sellerId and userId fields
+        const userSalesRef = collection(db, "sales");
+        let userSalesCount = 0;
+        
+        // Try with sellerId
+        const userSalesQuery1 = query(userSalesRef, where("sellerId", "==", user.uid));
+        const userSalesSnapshot1 = await getCountFromServer(userSalesQuery1);
+        userSalesCount += userSalesSnapshot1.data().count;
+        
+        // Also try with userId in case that's the field name used
+        const userSalesQuery2 = query(userSalesRef, where("userId", "==", user.uid));
+        const userSalesSnapshot2 = await getCountFromServer(userSalesQuery2);
+        userSalesCount += userSalesSnapshot2.data().count;
+        
+        // User's revenue - check both field variations
+        let userRevenue = 0;
+        
+        // Get sales with sellerId
+        const userRevenueQuery1 = query(userSalesRef, where("sellerId", "==", user.uid), limit(100));
+        const userRevenueSnapshot1 = await getDocs(userRevenueQuery1);
+        userRevenueSnapshot1.forEach((doc) => {
+          const saleData = doc.data();
+          if (saleData.unitPrice && saleData.quantity) {
+            userRevenue += parseFloat(saleData.unitPrice) * parseInt(saleData.quantity || 1);
+          } else if (saleData.amount) {
+            // Alternative: check if there's a direct amount field
+            userRevenue += parseFloat(saleData.amount);
+          }
+        });
+        
+        // Get sales with userId
+        const userRevenueQuery2 = query(userSalesRef, where("userId", "==", user.uid), limit(100));
+        const userRevenueSnapshot2 = await getDocs(userRevenueQuery2);
+        userRevenueSnapshot2.forEach((doc) => {
+          const saleData = doc.data();
+          if (saleData.unitPrice && saleData.quantity) {
+            userRevenue += parseFloat(saleData.unitPrice) * parseInt(saleData.quantity || 1);
+          } else if (saleData.amount) {
+            // Alternative: check if there's a direct amount field
+            userRevenue += parseFloat(saleData.amount);
+          }
+        });
+        
+        // Update user stats
+        setUserStats({
+          userShops: userShopsCount,
+          userProducts: userProductsCount,
+          userSales: userSalesCount,
+          userRevenue: userRevenue
+        });
+        
+        console.log("User data loaded successfully");
+      } catch (error) {
+        console.error("Error loading user-specific data:", error);
+        // Don't set global error since we still want to show global stats
+      }
+    }
+
     // Only load data if user is authenticated
     if (user && !authLoading) {
       loadGlobalData().catch(err => {
@@ -376,6 +452,11 @@ export default function Dashboard() {
           setError("An unexpected error occurred. Please try again.");
           setLoading(false);
         }
+      });
+      
+      // Also load user-specific data
+      loadUserData().catch(err => {
+        console.error("Unhandled error in loadUserData:", err);
       });
     } else if (!authLoading && !user) {
       // If not authenticated and not loading, set error
