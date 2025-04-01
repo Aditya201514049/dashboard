@@ -43,7 +43,7 @@ const Admin = () => {
   
   // Form data
   const [shopForm, setShopForm] = useState({ name: "", location: "", description: "" });
-  const [productForm, setProductForm] = useState({ name: "", price: "", stock: "", description: "" });
+  const [productForm, setProductForm] = useState({ name: "", price: "", stock: "", description: "", category: "" });
   const [saleForm, setSaleForm] = useState({ quantity: "", date: getCurrentDate() });
   
   // Modal state
@@ -57,6 +57,31 @@ const Admin = () => {
   
   const [salesData, setSalesData] = useState([]);
   const [loadingSales, setLoadingSales] = useState(false);
+  
+  // Product categories list
+  const productCategories = [
+    "Electronics",
+    "Clothing & Fashion",
+    "Home & Furniture",
+    "Beauty & Personal Care",
+    "Health & Wellness",
+    "Food & Groceries",
+    "Books & Stationery",
+    "Toys & Games",
+    "Sports & Outdoors",
+    "Automotive",
+    "Jewelry & Accessories",
+    "Baby & Kids",
+    "Pet Supplies",
+    "Office & School Supplies",
+    "Arts & Crafts",
+    "Digital Products",
+    "Mobile Phones & Accessories",
+    "Computers & Laptops",
+    "Kitchen & Dining",
+    "Garden & Outdoor",
+    "Other"
+  ];
   
   // Get current date in YYYY-MM-DD format for the date input
   function getCurrentDate() {
@@ -170,7 +195,7 @@ const Admin = () => {
     if (modalType === "shop") {
       setShopForm({ name: "", location: "", description: "" });
     } else if (modalType === "product") {
-      setProductForm({ name: "", price: "", stock: "", description: "" });
+      setProductForm({ name: "", price: "", stock: "", description: "", category: "" });
     } else if (modalType === "sale") {
       setSaleForm({ quantity: "", date: getCurrentDate() });
     }
@@ -243,7 +268,7 @@ const Admin = () => {
       return;
     }
     
-    if (!productForm.name || !productForm.price) {
+    if (!productForm.name || !productForm.price || !productForm.category) {
       setError("Please fill in all required fields.");
       return;
     }
@@ -1049,6 +1074,27 @@ const Admin = () => {
                       placeholder="0.00"
                       required
                     />
+                  </div>
+                  
+                  <div className="mb-4">
+                    <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-1">
+                      Category *
+                    </label>
+                    <select
+                      id="category"
+                      name="category"
+                      value={productForm.category}
+                      onChange={handleProductFormChange}
+                      className="w-full p-2 border border-gray-300 rounded"
+                      required
+                    >
+                      <option value="" disabled>Select a category</option>
+                      {productCategories.map((category, index) => (
+                        <option key={index} value={category}>
+                          {category}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   
                   <div className="mb-4">
