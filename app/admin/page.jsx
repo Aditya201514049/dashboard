@@ -28,6 +28,7 @@ import {
   FiSearch,
   FiBarChart2
 } from "react-icons/fi";
+import { TakaIcon } from "@/components/ui/taka-icon";
 
 const Admin = () => {
   const { user, loading: authLoading } = useAuth();
@@ -796,13 +797,13 @@ const Admin = () => {
               {activeStep === "sales" && selectedProduct && (
                 <div>
                   <h2 className="text-xl font-semibold mb-4 flex items-center">
-                    <FiDollarSign className="mr-2 text-blue-500" /> Sales for {selectedProduct.name}
+                    <TakaIcon className="mr-2 text-blue-500" /> Sales for {selectedProduct.name}
                   </h2>
                   
                   <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6">
                     <div className="flex">
                       <div className="flex-shrink-0">
-                        <FiDollarSign className="h-5 w-5 text-blue-400" />
+                        <TakaIcon className="h-5 w-5 text-blue-400" />
                       </div>
                       <div className="ml-3">
                         <p className="text-sm text-blue-700">
@@ -852,7 +853,7 @@ const Admin = () => {
                         </div>
                       ) : salesData.length === 0 ? (
                         <div className="text-center py-8 border-2 border-dashed border-gray-200 rounded-lg">
-                          <FiDollarSign className="mx-auto h-10 w-10 text-gray-400" />
+                          <TakaIcon className="mx-auto h-10 w-10 text-gray-400" />
                           <h3 className="mt-2 text-sm font-medium text-gray-900">No sales yet</h3>
                           <p className="mt-1 text-sm text-gray-500">Record your first sale with this product.</p>
                         </div>
