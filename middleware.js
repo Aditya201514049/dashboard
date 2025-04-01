@@ -4,26 +4,35 @@ import { NextResponse } from 'next/server';
 const publicPaths = [
   '/signin',
   '/signup',
+  '/', // Root path is public
   // Add other public paths as needed
 ];
 
 export function middleware(request) {
   // Check if the path is a public path
   const isPublicPath = publicPaths.some(path => 
-    request.nextUrl.pathname.startsWith(path)
+    request.nextUrl.pathname === path || 
+    request.nextUrl.pathname.startsWith(path + '/')
   );
-
+  
   // Get the Firebase auth token from the cookie if it exists
   const authCookie = request.cookies.get('__session')?.value;
-
-  // If path requires authentication and no auth cookie exists, redirect to signin
-  if (!isPublicPath && !authCookie) {
-    // Return to signin with a redirect back to the original URL after successful login
+  
+  // Prevent redirecting to dashboard if it's explicitly requested and no auth cookie
+  // This helps prevent redirect loops when dashboard doesn't work
+  if (request.nextUrl.pathname === '/dashboard' && !authCookie) {
     return NextResponse.redirect(new URL('/signin', request.url));
   }
 
-  // If the user is authenticated and trying to access an auth page, redirect to dashboard
-  if (isPublicPath && authCookie) {
+  // If path requires authentication and no auth cookie exists, redirect to signin
+  if (!isPublicPath && !authCookie) {
+    return NextResponse.redirect(new URL('/signin', request.url));
+  }
+
+  // If user is authenticated and trying to access signin/signup pages, redirect to dashboard
+  // But don't redirect from the root path
+  if (isPublicPath && authCookie && 
+      (request.nextUrl.pathname === '/signin' || request.nextUrl.pathname === '/signup')) {
     return NextResponse.redirect(new URL('/dashboard', request.url));
   }
   

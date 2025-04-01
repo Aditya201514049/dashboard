@@ -116,6 +116,7 @@ export default function Dashboard() {
   const [date, setDate] = useState(new Date());
   const [salesData, setSalesData] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [dateRange, setDateRange] = useState({
     from: new Date(new Date().setDate(new Date().getDate() - 30)),
     to: new Date()
@@ -190,7 +191,16 @@ export default function Dashboard() {
     async function loadGlobalData() {
       try {
         setLoading(true);
+        setError(null);
         console.log("Loading global data...");
+
+        // Add safety checks to prevent errors
+        if (!db) {
+          console.error("Firestore DB not initialized");
+          setError("Database connection error");
+          setLoading(false);
+          return;
+        }
 
         // Count total users
         const usersRef = collection(db, "users");
@@ -346,78 +356,22 @@ export default function Dashboard() {
         setLoading(false);
         console.log("Global data loaded successfully");
       } catch (error) {
-        console.error("Error loading global data:", error);
+        console.error("Error loading dashboard data:", error);
+        setError("Failed to load dashboard data. Please try again.");
+      } finally {
         setLoading(false);
       }
     }
 
-    async function loadUserData() {
-      try {
-        if (user) {
-          console.log("Loading user-specific data...");
-          const userId = user.uid;
-
-          // Count user's shops
-          const userShopsQuery = query(collection(db, "shops"), where("userId", "==", userId));
-          const userShopsSnapshot = await getCountFromServer(userShopsQuery);
-          const userShops = userShopsSnapshot.data().count;
-
-          // Get user's shop IDs
-          const userShopsIdsSnapshot = await getDocs(userShopsQuery);
-          const shopIds = userShopsIdsSnapshot.docs.map(doc => doc.id);
-
-          // Count user's products
-          let userProducts = 0;
-          let userSales = 0;
-          let userRevenue = 0;
-
-          // If user has shops, get product and sales data
-          if (shopIds.length > 0) {
-            for (const shopId of shopIds) {
-              // Count products for this shop
-              const productsQuery = query(collection(db, "products"), where("shopId", "==", shopId));
-              const productsSnapshot = await getCountFromServer(productsQuery);
-              userProducts += productsSnapshot.data().count;
-
-              // Count sales and sum revenue for this shop
-              const salesQuery = query(collection(db, "sales"), where("shopId", "==", shopId));
-              const salesSnapshot = await getCountFromServer(salesQuery);
-              userSales += salesSnapshot.data().count;
-
-              // Calculate revenue from sales
-              const salesQuerySnapshot = await getDocs(salesQuery);
-              salesQuerySnapshot.forEach((doc) => {
-                const saleData = doc.data();
-                if (saleData.unitPrice && saleData.quantity) {
-                  userRevenue += parseFloat(saleData.unitPrice) * parseInt(saleData.quantity || 1);
-                }
-              });
-            }
-          }
-
-          // Update user-specific stats
-          setUserStats({
-            userShops,
-            userProducts,
-            userSales,
-            userRevenue
-          });
-
-          console.log("User data loaded successfully");
-        }
-      } catch (error) {
-        console.error("Error loading user data:", error);
-      }
+    // Only load data if user is authenticated
+    if (user && !authLoading) {
+      loadGlobalData();
+    } else if (!authLoading && !user) {
+      // If not authenticated and not loading, set error
+      setError("Authentication required");
+      setLoading(false);
     }
-    
-    // Load global data for all users
-    loadGlobalData();
-    
-    // If authenticated, also load user-specific data
-    if (user) {
-      loadUserData();
-    }
-  }, [user]);
+  }, [user, authLoading]);
 
   // Format currency
   const formatCurrency = (amount) => {
@@ -460,6 +414,48 @@ export default function Dashboard() {
     }
   };
 
+  // Add a fallback UI for errors
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen p-4">
+        <div className="text-center mb-4">
+          <Info className="h-12 w-12 text-red-500 mx-auto mb-2" />
+          <h2 className="text-2xl font-bold text-gray-800">{error}</h2>
+          <p className="text-gray-600 mt-2">
+            {error === "Authentication required" 
+              ? "Please sign in to access your dashboard" 
+              : "There was a problem loading your dashboard"}
+          </p>
+        </div>
+        {error === "Authentication required" ? (
+          <Button 
+            onClick={() => window.location.href = '/signin'}
+            className="mt-4"
+          >
+            Go to Sign In
+          </Button>
+        ) : (
+          <Button 
+            onClick={() => window.location.reload()}
+            className="mt-4"
+          >
+            Try Again
+          </Button>
+        )}
+      </div>
+    );
+  }
+
+  // Enhanced loading state
+  if (loading || authLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen">
+        <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+        <p className="text-gray-600">Loading your dashboard...</p>
+      </div>
+    );
+  }
+
   // Dashboard content that shows for all users
   const DashboardContent = () => (
     <div className="min-h-screen bg-slate-50 p-4 md:p-6">
@@ -483,7 +479,7 @@ export default function Dashboard() {
           <CardHeader className="pb-2">
             <CardDescription>Total Users</CardDescription>
             <CardTitle className="text-2xl flex items-center justify-between">
-              {loading ? '...' : globalStats.totalUsers}
+              {globalStats.totalUsers}
               <Users className="h-5 w-5 text-blue-500" />
             </CardTitle>
           </CardHeader>
@@ -504,7 +500,7 @@ export default function Dashboard() {
           <CardHeader className="pb-2">
             <CardDescription>Total Revenue</CardDescription>
             <CardTitle className="text-2xl flex items-center justify-between">
-              {loading ? '...' : formatCurrency(globalStats.totalRevenue)}
+              {formatCurrency(globalStats.totalRevenue)}
               <TakaIcon className="h-5 w-5 text-green-500" />
             </CardTitle>
           </CardHeader>
@@ -525,7 +521,7 @@ export default function Dashboard() {
           <CardHeader className="pb-2">
             <CardDescription>Total Sales</CardDescription>
             <CardTitle className="text-2xl flex items-center justify-between">
-              {loading ? '...' : globalStats.totalSales}
+              {globalStats.totalSales}
               <ShoppingCart className="h-5 w-5 text-purple-500" />
             </CardTitle>
           </CardHeader>
@@ -546,7 +542,7 @@ export default function Dashboard() {
           <CardHeader className="pb-2">
             <CardDescription>Total Products</CardDescription>
             <CardTitle className="text-2xl flex items-center justify-between">
-              {loading ? '...' : globalStats.totalProducts}
+              {globalStats.totalProducts}
               <Package className="h-5 w-5 text-orange-500" />
             </CardTitle>
           </CardHeader>
@@ -696,7 +692,7 @@ export default function Dashboard() {
               <CardDescription>Total shops on the platform</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold mb-4">{loading ? '...' : globalStats.totalShops}</div>
+              <div className="text-3xl font-bold mb-4">{globalStats.totalShops}</div>
               {user && (
                 <div className="text-sm text-gray-600">
                   Your shops: {userStats.userShops}
@@ -798,11 +794,7 @@ export default function Dashboard() {
               <CardDescription>Latest system events</CardDescription>
             </CardHeader>
             <CardContent>
-              {loading ? (
-                <div className="flex justify-center items-center h-40">
-                  <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
-                </div>
-              ) : activities.length === 0 ? (
+              {activities.length === 0 ? (
                 <div className="text-center py-8 text-gray-500">
                   <Activity className="h-10 w-10 mx-auto text-gray-300 mb-3" />
                   <p className="text-sm font-medium">No recent activities</p>
