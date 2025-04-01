@@ -27,7 +27,10 @@ const SignInPage = () => {
         secure: process.env.NODE_ENV === 'production'
       });
       
-      router.push(isNewUser ? '/onboarding' : '/dashboard');
+      console.log('Sign-in successful, redirecting to', isNewUser ? '/onboarding' : '/dashboard');
+
+      // Use direct navigation for more reliable redirects in production
+      window.location.href = isNewUser ? '/onboarding' : '/dashboard';
     } catch (error) {
       console.error("Sign-in success handling error:", error);
     }
@@ -53,7 +56,9 @@ const SignInPage = () => {
             secure: process.env.NODE_ENV === 'production'
           });
           
-          router.push('/dashboard');
+          console.log('User already authenticated, redirecting to dashboard');
+          // Use direct navigation for more reliable redirects
+          window.location.href = '/dashboard';
         } catch (error) {
           console.error("Auth state change error:", error);
         }

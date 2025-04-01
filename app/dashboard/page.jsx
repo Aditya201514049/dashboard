@@ -188,8 +188,11 @@ export default function Dashboard() {
 
   // Load real data for all users - both authenticated and non-authenticated
   useEffect(() => {
+    let isMounted = true;
+
     async function loadGlobalData() {
       try {
+        if (!isMounted) return;
         setLoading(true);
         setError(null);
         console.log("Loading global data...");
@@ -353,24 +356,36 @@ export default function Dashboard() {
           console.error("Error loading activities:", activityError);
         }
 
+        if (!isMounted) return;
         setLoading(false);
         console.log("Global data loaded successfully");
       } catch (error) {
         console.error("Error loading dashboard data:", error);
-        setError("Failed to load dashboard data. Please try again.");
-      } finally {
-        setLoading(false);
+        if (isMounted) {
+          setError("Failed to load dashboard data. Please try again.");
+          setLoading(false);
+        }
       }
     }
 
     // Only load data if user is authenticated
     if (user && !authLoading) {
-      loadGlobalData();
+      loadGlobalData().catch(err => {
+        console.error("Unhandled error in loadGlobalData:", err);
+        if (isMounted) {
+          setError("An unexpected error occurred. Please try again.");
+          setLoading(false);
+        }
+      });
     } else if (!authLoading && !user) {
       // If not authenticated and not loading, set error
       setError("Authentication required");
       setLoading(false);
     }
+    
+    return () => {
+      isMounted = false;
+    };
   }, [user, authLoading]);
 
   // Format currency

@@ -1,4 +1,3 @@
-
 'use client';
 
 import { auth } from '@/lib/firebase';
@@ -37,8 +36,15 @@ const GoogleSignIn = ({ onSuccess, onError }) => {
         isNewUser
       });
   
-      if (onSuccess) {
-        onSuccess({ user, isNewUser });
+      try {
+        if (onSuccess) {
+          await onSuccess({ user, isNewUser });
+        }
+      } catch (callbackError) {
+        console.error('Error in onSuccess callback:', callbackError);
+        // Fallback redirect if the callback fails
+        console.log('Fallback redirect after Google sign-in');
+        window.location.href = isNewUser ? '/onboarding' : '/dashboard';
       }
       
     } catch (error) {
