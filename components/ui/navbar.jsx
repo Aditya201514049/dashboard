@@ -1,11 +1,11 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { auth } from '@/lib/firebase';
 import { useAuth } from '@/lib/AuthContext';
 import Cookies from 'js-cookie';
-import { Menu, User, LogOut, BarChart2, ShoppingBag } from 'lucide-react';
+import { Menu, X, User, LogOut, BarChart2, ShoppingBag } from 'lucide-react';
 
 const Navbar = () => {
   const router = useRouter();
@@ -13,6 +13,24 @@ const Navbar = () => {
   const { user } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showProfileOptions, setShowProfileOptions] = useState(false);
+  const menuRef = useRef(null);
+
+  // Handle click outside to close menu
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setIsMenuOpen(false);
+      }
+    };
+
+    if (isMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isMenuOpen]);
 
   const handleSignOut = async () => {
     try {
@@ -68,39 +86,66 @@ const Navbar = () => {
               
               {/* Horizontal Profile Options */}
               {showProfileOptions && (
-                <div className="flex items-center ml-2 bg-white/10 rounded-full py-0.5 px-2 text-xs text-white">
-                  <Link href="/profile" className="px-2 py-0.5 hover:underline whitespace-nowrap" onClick={() => setShowProfileOptions(false)}>
+                <div className="absolute right-4 top-12 bg-white/95 shadow-lg rounded-md p-2 text-xs text-gray-800 min-w-[120px] z-50">
+                  <Link href="/profile" className="px-2 py-1.5 hover:bg-gray-100 rounded-sm flex items-center" onClick={() => setShowProfileOptions(false)}>
                     Profile
                   </Link>
-                  <span className="mx-1">|</span>
-                  <button onClick={handleSignOut} className="px-2 py-0.5 hover:underline whitespace-nowrap">
+                  <div className="my-1 h-px bg-gray-200"></div>
+                  <button 
+                    onClick={handleSignOut} 
+                    className="px-2 py-1.5 hover:bg-gray-100 rounded-sm flex items-center w-full text-left text-red-600"
+                  >
+                    <LogOut size={12} className="mr-1" />
                     Sign Out
                   </button>
                 </div>
               )}
             </div>
             
-            {/* Mobile Menu Toggle */}
-            <button className="md:hidden h-8 w-8 flex items-center justify-center text-white" onClick={() => setIsMenuOpen(!isMenuOpen)}>
-              <Menu size={16} />
+            {/* Mobile Menu Toggle Button - Hamburger/X icon */}
+            <button 
+              className="md:hidden h-8 w-8 flex items-center justify-center text-white transition-all duration-200 relative focus:outline-none" 
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              aria-label={isMenuOpen ? "Close menu" : "Open menu"}
+            >
+              {isMenuOpen ? (
+                <X size={18} className="absolute" />
+              ) : (
+                <Menu size={18} className="absolute" />
+              )}
             </button>
           </div>
         </div>
       </nav>
       
-      {/* Mobile Menu - Slide Down */}
+      {/* Mobile Menu - Modern Popup Style */}
       {isMenuOpen && (
-        <div className="md:hidden bg-primary/95 shadow-md absolute w-full z-40">
-          <div className="container mx-auto py-1 flex flex-col space-y-1 text-center">
-            <Link href="/" className={`text-xs py-1 px-3 ${isActive("/")} flex items-center justify-center`} onClick={() => setIsMenuOpen(false)}>
+        <div 
+          ref={menuRef}
+          className="md:hidden fixed top-12 right-2 w-48 bg-white rounded-md shadow-lg z-50 overflow-hidden transform transition-all duration-200 ease-in-out origin-top-right"
+        >
+          <div className="py-1 flex flex-col">
+            <Link 
+              href="/" 
+              className={`flex items-center px-4 py-2 text-sm ${pathname === "/" ? "bg-primary/10 text-primary font-medium" : "text-gray-700 hover:bg-gray-100"}`} 
+              onClick={() => setIsMenuOpen(false)}
+            >
               <span>Home</span>
             </Link>
-            <Link href="/dashboard" className={`text-xs py-1 px-3 ${isActive("/dashboard")} flex items-center justify-center`} onClick={() => setIsMenuOpen(false)}>
-              <BarChart2 size={12} className="mr-1" />
+            <Link 
+              href="/dashboard" 
+              className={`flex items-center px-4 py-2 text-sm ${pathname === "/dashboard" ? "bg-primary/10 text-primary font-medium" : "text-gray-700 hover:bg-gray-100"}`} 
+              onClick={() => setIsMenuOpen(false)}
+            >
+              <BarChart2 size={14} className="mr-2" />
               <span>Dashboard</span>
             </Link>
-            <Link href="/admin" className={`text-xs py-1 px-3 ${isActive("/admin")} flex items-center justify-center`} onClick={() => setIsMenuOpen(false)}>
-              <ShoppingBag size={12} className="mr-1" />
+            <Link 
+              href="/admin" 
+              className={`flex items-center px-4 py-2 text-sm ${pathname === "/admin" ? "bg-primary/10 text-primary font-medium" : "text-gray-700 hover:bg-gray-100"}`} 
+              onClick={() => setIsMenuOpen(false)}
+            >
+              <ShoppingBag size={14} className="mr-2" />
               <span>Admin</span>
             </Link>
           </div>
